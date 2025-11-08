@@ -9,6 +9,8 @@ import GestureVideoUpload from "./GestureVideoUpload";
 import FullBodyVideoUpload from "./FullBodyVideoUpload";
 import FullBodyExtract from "./FullBodyExtract";
 import IntegratedPhotoCapture from "./IntegratedPhotoCapture";
+import IntegratedVideoCapture from "./IntegratedVideoCapture";
+import IntegratedPhotoCaptureV2 from "./IntegratedPhotoCaptureV2";
 import "./index.css";
 
 type Mode =
@@ -19,7 +21,9 @@ type Mode =
   | "gesture-video"
   | "fullbody"
   | "extract"
-  | "integrated";
+  | "integrated"
+  | "integrated-video"
+  | "integrated-v2";
 
 export default function App(): React.JSX.Element {
   const [modelLoaded, setModelLoaded] = React.useState<boolean>(false);
@@ -146,6 +150,19 @@ export default function App(): React.JSX.Element {
         >
           📸 智能拍照
         </button>
+        <button
+          className={mode === "integrated-video" ? "active" : ""}
+          onClick={() => setMode("integrated-video")}
+        >
+          🎬 视频拍照
+        </button>
+        <button
+          className={mode === "integrated-v2" ? "active" : ""}
+          onClick={() => setMode("integrated-v2")}
+          style={{ backgroundColor: "#4CAF50", color: "white" }}
+        >
+          ✨ 智能拍照V2 (Pose)
+        </button>
       </div>
 
       {!modelLoaded && (
@@ -195,6 +212,10 @@ export default function App(): React.JSX.Element {
           {mode === "extract" && <FullBodyExtract />}
 
           {mode === "integrated" && <IntegratedPhotoCapture />}
+
+          {mode === "integrated-video" && <IntegratedVideoCapture />}
+
+          {mode === "integrated-v2" && <IntegratedPhotoCaptureV2 />}
         </>
       )}
     </div>

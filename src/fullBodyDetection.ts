@@ -46,17 +46,14 @@ export async function loadFullBodyModels(): Promise<void> {
       });
 
       // 加载全身检测模型
-      await loadDataFile(
-        "haarcascade_upperbody.xml",
-        "/models/haarcascade_upperbody.xml"
-      );
+      await loadDataFile("haarcascade_eye.xml", "/models/haarcascade_eye.xml");
 
       // 等待文件系统稳定
       await new Promise<void>((resolve) => setTimeout(resolve, 500));
 
       // 加载分类器
       fullBodyCascade = new cv.CascadeClassifier();
-      const loaded = fullBodyCascade.load("haarcascade_upperbody.xml");
+      const loaded = fullBodyCascade.load("haarcascade_eye.xml");
 
       if (!loaded) {
         throw new Error("Failed to load full body cascade classifier");
