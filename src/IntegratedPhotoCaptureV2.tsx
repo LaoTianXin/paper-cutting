@@ -43,31 +43,101 @@ function calculateDistance(
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-// 识别OK手势
-function recognizeOKGesture(landmarks: NormalizedLandmark[]): boolean {
-  const thumbTip = landmarks[4];
-  const indexTip = landmarks[8];
-  const indexPip = landmarks[6];
-  const middleTip = landmarks[12];
-  const ringTip = landmarks[16];
-  const pinkyTip = landmarks[20];
-  const palmBase = landmarks[9];
+// 识别OK手势（优化版：适配全身拍照场景，使用动态阈值）
+function recognizeOKGesture(landmarks: NormalizedLandmark[]): {
+  isOK: boolean;
+  confidence: number;
+} {
+  // 手部关键点索引：
+  // 0: 手腕
+  // 4: 大拇指尖
+  // 8: 食指尖
+  // 12: 中指尖
+  // 16: 无名指尖
+  // 20: 小指尖
 
+  const wrist = landmarks[0]; // 手腕
+  const thumbTip = landmarks[4]; // 大拇指尖
+  const indexTip = landmarks[8]; // 食指尖
+  const indexPip = landmarks[6]; // 食指第二关节
+  const indexMcp = landmarks[5]; // 食指掌指关节
+  const middleTip = landmarks[12]; // 中指尖
+  const middleMcp = landmarks[9]; // 中指掌指关节（手掌中心）
+  const ringTip = landmarks[16]; // 无名指尖
+  const pinkyTip = landmarks[20]; // 小指尖
+  const palmBase = landmarks[9]; // 手掌中心
+
+  // 🔍 计算手的实际大小（手腕到中指掌指关节的距离）作为参考
+  const handSize = calculateDistance(wrist, middleMcp);
+
+  // 1. 检查大拇指和食指是否形成圆圈（使用动态阈值）
   const thumbIndexDist = calculateDistance(thumbTip, indexTip);
-  const isCircleFormed = thumbIndexDist < 0.08;
+  // 动态阈值：允许圆圈直径为手掌大小的 15%（原来是固定0.08）
+  const circleThreshold = Math.max(handSize * 0.15, 0.06); // 最小阈值0.06
+  const isCircleFormed = thumbIndexDist < circleThreshold;
 
-  const middleExtended = middleTip.y < palmBase.y - 0.1;
-  const ringExtended = ringTip.y < palmBase.y - 0.08;
-  const pinkyExtended = pinkyTip.y < palmBase.y - 0.06;
-  const indexBent = indexPip.y < indexTip.y;
+  // 圆圈质量评分（越小越好，满分40）
+  const circleQuality = isCircleFormed
+    ? Math.max(0, 40 - (thumbIndexDist / circleThreshold) * 10)
+    : 0;
 
-  return (
-    isCircleFormed &&
-    middleExtended &&
-    ringExtended &&
-    pinkyExtended &&
-    indexBent
-  );
+  // 2. 检查其他三根手指是否伸直（使用相对位置）
+  // 改进：使用相对于手掌基准的距离，考虑手的大小
+  const fingerExtendThreshold = handSize * 0.4; // 动态阈值
+
+  const middleExtendDist = Math.abs(middleTip.y - palmBase.y);
+  const ringExtendDist = Math.abs(ringTip.y - palmBase.y);
+  const pinkyExtendDist = Math.abs(pinkyTip.y - palmBase.y);
+
+  // 手指伸直判断（y坐标小于手掌基准）
+  const middleExtended =
+    middleTip.y < palmBase.y && middleExtendDist > fingerExtendThreshold * 0.5;
+  const ringExtended =
+    ringTip.y < palmBase.y && ringExtendDist > fingerExtendThreshold * 0.4;
+  const pinkyExtended =
+    pinkyTip.y < palmBase.y && pinkyExtendDist > fingerExtendThreshold * 0.3;
+
+  // 3. 确保食指是弯曲的（形成圆圈的一部分）
+  // 改进：检查食指弯曲角度（更宽松）
+  const indexBent = indexPip.y < indexTip.y || indexMcp.y < indexTip.y;
+
+  // 4. 额外检查：确保大拇指和食指在合理的位置（圆圈中心应该在手掌前方）
+  const circleCenter = {
+    x: (thumbTip.x + indexTip.x) / 2,
+    y: (thumbTip.y + indexTip.y) / 2,
+  };
+  const circleCenterReasonable = circleCenter.y < palmBase.y + handSize * 0.3;
+
+  // 计算置信度（优化评分权重）
+  let confidenceScore = 0;
+
+  // 圆圈形成是核心特征（40分，质量评分）
+  confidenceScore += circleQuality;
+
+  // 手指伸直（每个20分，但只要有2根伸直就算合格）
+  const extendedFingers = [middleExtended, ringExtended, pinkyExtended];
+  const extendedCount = extendedFingers.filter(Boolean).length;
+
+  if (middleExtended) confidenceScore += 20;
+  if (ringExtended) confidenceScore += 20;
+  if (pinkyExtended) confidenceScore += 15;
+
+  // 食指弯曲（5分）
+  if (indexBent) confidenceScore += 5;
+
+  // 圆圈位置合理（额外5分奖励）
+  if (circleCenterReasonable) confidenceScore += 5;
+
+  // 判断是否为OK手势（优化判断逻辑）
+  // 条件1：置信度 >= 70分（降低要求）
+  // 条件2：必须形成圆圈
+  // 条件3：至少2根手指伸直
+  const isOK = confidenceScore >= 70 && isCircleFormed && extendedCount >= 2;
+
+  return {
+    isOK,
+    confidence: Math.min(100, Math.round(confidenceScore)),
+  };
 }
 
 export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
@@ -130,13 +200,15 @@ export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
       return;
     }
 
-    // 在全身检测阶段和手势识别阶段都处理 Pose 结果
+    // 在所有阶段都处理 Pose 结果（包括 COMPLETED，保持画面更新）
     if (
       currentState === CaptureState.IDLE ||
       currentState === CaptureState.DETECTING_BODY ||
       currentState === CaptureState.BODY_DETECTED ||
       currentState === CaptureState.DETECTING_GESTURE ||
-      currentState === CaptureState.GESTURE_DETECTED
+      currentState === CaptureState.GESTURE_DETECTED ||
+      currentState === CaptureState.COUNTDOWN ||
+      currentState === CaptureState.COMPLETED
     ) {
       // 始终先绘制视频帧（确保画面不黑屏）
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -155,12 +227,13 @@ export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
           lastBodyRectRef.current = rect;
           lastPoseLandmarksRef.current = results.poseLandmarks;
 
-          // 绘制骨骼（IDLE 和检测阶段都显示）
+          // 绘制骨骼和边界框
           if (
             currentState === CaptureState.IDLE ||
             currentState === CaptureState.DETECTING_BODY ||
             currentState === CaptureState.BODY_DETECTED
           ) {
+            // 全身检测阶段：显示详细的骨骼和边界框
             drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {
               color: "#00FF00",
               lineWidth: 2,
@@ -177,8 +250,20 @@ export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
             ctx.fillStyle = "#00FF00";
             ctx.font = "bold 24px Arial";
             ctx.fillText("全身已检测", rect.x, rect.y - 10);
+          } else if (currentState === CaptureState.COUNTDOWN) {
+            // 倒计时阶段：只显示边界框（不显示骨骼，避免干扰）
+            ctx.strokeStyle = "#00FF00";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+          } else if (currentState === CaptureState.COMPLETED) {
+            // 拍照完成阶段：显示淡化的边界框，提示可以重新拍照
+            ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+          }
 
-            // 状态切换逻辑
+          // 状态切换逻辑（仅在非 COMPLETED 状态执行）
+          if (currentState !== CaptureState.COMPLETED) {
             if (currentState === CaptureState.IDLE) {
               setState(CaptureState.DETECTING_BODY);
               bodyDetectionStartTime.current = currentTime;
@@ -211,9 +296,23 @@ export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
         }
       }
 
+      // 绘制倒计时数字（COUNTDOWN 阶段）
+      if (currentState === CaptureState.COUNTDOWN) {
+        ctx.fillStyle = "#FFD700";
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 5;
+        ctx.font = "bold 120px Arial";
+        const text = countdownRef.current.toString();
+        const textWidth = ctx.measureText(text).width;
+        const x = (canvas.width - textWidth) / 2;
+        const y = canvas.height / 2;
+        ctx.strokeText(text, x, y);
+        ctx.fillText(text, x, y);
+      }
+
       // 绘制状态消息（Pose 检测阶段都显示）
       const currentStatusMessage = statusMessageRef.current;
-      if (currentStatusMessage) {
+      if (currentStatusMessage && currentState !== CaptureState.COUNTDOWN) {
         ctx.fillStyle = "#FFFFFF";
         ctx.strokeStyle = "#000000";
         ctx.lineWidth = 3;
@@ -330,6 +429,7 @@ export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
       }
 
       let isOKDetected = false;
+      let maxConfidence = 0;
 
       // 绘制手部检测
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
@@ -344,8 +444,12 @@ export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
             radius: 4,
           });
 
-          if (recognizeOKGesture(landmarks)) {
+          // 识别OK手势（使用改进的置信度逻辑）
+          const gestureResult = recognizeOKGesture(landmarks);
+
+          if (gestureResult.isOK) {
             isOKDetected = true;
+            maxConfidence = Math.max(maxConfidence, gestureResult.confidence);
 
             ctx.font = "bold 48px Arial";
             ctx.fillStyle = "#00FF00";
@@ -357,6 +461,44 @@ export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
             const y = 80;
             ctx.strokeText(text, x, y);
             ctx.fillText(text, x, y);
+
+            // 显示置信度
+            ctx.font = "bold 20px Arial";
+            ctx.fillStyle = "#FFFFFF";
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 2;
+            const confidenceText = `置信度: ${gestureResult.confidence}%`;
+            const confTextWidth = ctx.measureText(confidenceText).width;
+            const confX = (canvas.width - confTextWidth) / 2;
+            const confY = 120;
+            ctx.strokeText(confidenceText, confX, confY);
+            ctx.fillText(confidenceText, confX, confY);
+
+            // 高亮显示大拇指和食指（参考 GestureDetection 组件）
+            const thumbTip = landmarks[4];
+            const indexTip = landmarks[8];
+
+            ctx.beginPath();
+            ctx.arc(
+              thumbTip.x * canvas.width,
+              thumbTip.y * canvas.height,
+              15,
+              0,
+              2 * Math.PI
+            );
+            ctx.strokeStyle = "#FFFF00";
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(
+              indexTip.x * canvas.width,
+              indexTip.y * canvas.height,
+              15,
+              0,
+              2 * Math.PI
+            );
+            ctx.stroke();
           }
         }
       }
@@ -405,33 +547,7 @@ export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
       }
     }
 
-    // 倒计时逻辑
-    if (currentState === CaptureState.COUNTDOWN) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-
-      if (lastBodyRectRef.current) {
-        ctx.strokeStyle = "#00FF00";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(
-          lastBodyRectRef.current.x,
-          lastBodyRectRef.current.y,
-          lastBodyRectRef.current.width,
-          lastBodyRectRef.current.height
-        );
-      }
-
-      ctx.fillStyle = "#FFD700";
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 5;
-      ctx.font = "bold 120px Arial";
-      const text = countdownRef.current.toString();
-      const textWidth = ctx.measureText(text).width;
-      const x = (canvas.width - textWidth) / 2;
-      const y = canvas.height / 2;
-      ctx.strokeText(text, x, y);
-      ctx.fillText(text, x, y);
-    }
+    // 倒计时逻辑已移至 onPoseResults 处理，避免重复绘制和画面覆盖
   }, []);
 
   // 倒计时效果
@@ -636,6 +752,11 @@ export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
                 if (handsForCamera && mounted) {
                   await handsForCamera.send({ image: videoRef.current });
                 }
+              } else if (currentState === CaptureState.COMPLETED) {
+                // 拍照完成后继续显示实时画面（仅使用 Pose，不需要手势识别）
+                if (poseForCamera && mounted) {
+                  await poseForCamera.send({ image: videoRef.current });
+                }
               }
             } catch (err: unknown) {
               // 捕获已删除实例的错误，避免控制台报错
@@ -658,6 +779,31 @@ export default function IntegratedPhotoCaptureV2(): React.JSX.Element {
         }
 
         console.log("✅ 摄像头启动成功");
+
+        // 预热 Hands 模型，避免第一次使用时卡顿
+        console.log("🔥 预热 Hands 模型...");
+        if (videoRef.current && hands) {
+          try {
+            // 等待视频准备好
+            await new Promise((resolve) => {
+              const checkVideo = () => {
+                if (videoRef.current && videoRef.current.readyState >= 2) {
+                  resolve(true);
+                } else {
+                  setTimeout(checkVideo, 50);
+                }
+              };
+              checkVideo();
+            });
+
+            // 发送一帧进行预热
+            await hands.send({ image: videoRef.current });
+            console.log("✅ Hands 模型预热完成");
+          } catch (err) {
+            console.warn("⚠️ Hands 预热失败（不影响使用）:", err);
+          }
+        }
+
         console.log("🎉 所有组件初始化完成，准备就绪！");
 
         setIsLoading(false);

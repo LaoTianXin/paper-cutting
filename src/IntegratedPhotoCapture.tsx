@@ -113,13 +113,11 @@ export default function IntegratedPhotoCapture(): React.JSX.Element {
     statusMessageRef.current = statusMessage;
   }, [state, countdown, statusMessage]);
 
-  // 检测全身（支持多人，选择最大者）
+  // 检测全身
   const detectFullBody = React.useCallback(
-    (
-      imageData: ImageData
-    ): { count: number; rect: BodyRect | null; allRects: BodyRect[] } => {
+    (imageData: ImageData): { count: number; rect: BodyRect | null } => {
       if (!fullBodyCascadeRef.current) {
-        return { count: 0, rect: null, allRects: [] };
+        return { count: 0, rect: null };
       }
 
       try {
@@ -145,36 +143,26 @@ export default function IntegratedPhotoCapture(): React.JSX.Element {
         );
 
         const count = bodies.size();
-        const allRects: BodyRect[] = [];
-        let largestRect: BodyRect | null = null;
-        let largestArea = 0;
+        let rect: BodyRect | null = null;
 
-        // 收集所有检测到的身体，找出面积最大的
-        for (let i = 0; i < count; ++i) {
-          const body = bodies.get(i);
-          const rect = {
+        if (count === 1) {
+          const body = bodies.get(0);
+          rect = {
             x: body.x,
             y: body.y,
             width: body.width,
             height: body.height,
           };
-          allRects.push(rect);
-
-          const area = rect.width * rect.height;
-          if (area > largestArea) {
-            largestArea = area;
-            largestRect = rect;
-          }
         }
 
         gray.delete();
         src.delete();
         bodies.delete();
 
-        return { count, rect: largestRect, allRects };
+        return { count, rect };
       } catch (err) {
         console.error("全身检测错误:", err);
-        return { count: 0, rect: null, allRects: [] };
+        return { count: 0, rect: null };
       }
     },
     []
@@ -185,8 +173,7 @@ export default function IntegratedPhotoCapture(): React.JSX.Element {
     (
       videoElement: HTMLVideoElement,
       canvas: HTMLCanvasElement,
-      largestRect?: BodyRect | null,
-      allRects?: BodyRect[],
+      bodyRect?: BodyRect | null,
       bodyCount?: number
     ) => {
       const ctx = canvas.getContext("2d");
@@ -195,38 +182,22 @@ export default function IntegratedPhotoCapture(): React.JSX.Element {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
 
-      // 绘制所有检测到的身体框
-      if (allRects && allRects.length > 0) {
-        allRects.forEach((rect, index) => {
-          const isLargest =
-            largestRect &&
-            rect.x === largestRect.x &&
-            rect.y === largestRect.y &&
-            rect.width === largestRect.width &&
-            rect.height === largestRect.height;
+      // 绘制全身检测框
+      if (bodyRect) {
+        ctx.strokeStyle = "#00FF00";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(bodyRect.x, bodyRect.y, bodyRect.width, bodyRect.height);
 
-          // 最大的用绿色粗框，其他用黄色细框
-          ctx.strokeStyle = isLargest ? "#00FF00" : "#FFFF00";
-          ctx.lineWidth = isLargest ? 4 : 2;
-          ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
-
-          // 添加标签
-          ctx.fillStyle = isLargest ? "#00FF00" : "#FFFF00";
-          ctx.font = "bold 18px Arial";
-          const label = isLargest ? `主目标 (${index + 1})` : `${index + 1}`;
-          ctx.fillText(label, rect.x, rect.y - 10);
-        });
+        ctx.fillStyle = "#00FF00";
+        ctx.font = "bold 20px Arial";
+        ctx.fillText("Body Detected", bodyRect.x, bodyRect.y - 10);
       }
 
       // 绘制人数提示
-      if (bodyCount !== undefined && bodyCount > 0) {
-        const text =
-          bodyCount === 1
-            ? "检测到 1 人"
-            : `检测到 ${bodyCount} 人（已选择最大者）`;
-        ctx.fillStyle = "#00FF00";
+      if (bodyCount !== undefined) {
+        ctx.fillStyle = bodyCount === 1 ? "#00FF00" : "#FF0000";
         ctx.font = "bold 24px Arial";
-        ctx.fillText(text, 10, 40);
+        ctx.fillText(`检测到 ${bodyCount} 人`, 10, 40);
       }
 
       // 绘制状态消息（使用 ref）
@@ -288,10 +259,9 @@ export default function IntegratedPhotoCapture(): React.JSX.Element {
       ) {
         // 只在需要时获取 ImageData
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const { count, rect, allRects } = detectFullBody(imageData);
+        const { count, rect } = detectFullBody(imageData);
 
-        if (count >= 1 && rect) {
-          // 检测到至少一人，选择最大的
+        if (count === 1 && rect) {
           lastBodyDetectedTime.current = currentTime;
           lastBodyRectRef.current = rect;
 
@@ -320,9 +290,9 @@ export default function IntegratedPhotoCapture(): React.JSX.Element {
             setStatusMessage("✓ 已识别到全身");
           }
 
-          drawFrame(video, canvas, rect, allRects, count);
+          drawFrame(video, canvas, rect, count);
         } else {
-          // 未检测到任何人
+          // 未检测到全身或人数不对
           if (
             currentState === CaptureState.DETECTING_BODY ||
             currentState === CaptureState.BODY_DETECTED
@@ -339,11 +309,15 @@ export default function IntegratedPhotoCapture(): React.JSX.Element {
               setStatusMessage("❌ 未识别到全身，重新开始");
               setTimeout(() => setStatusMessage(""), 2000);
             } else {
-              setStatusMessage("正在检测全身...");
+              setStatusMessage(
+                count > 1 ? "检测到多人，请确保只有一人" : "正在检测全身..."
+              );
             }
+          } else {
+            setStatusMessage(count > 1 ? "检测到多人，请确保只有一人" : "");
           }
 
-          drawFrame(video, canvas, null, allRects, count);
+          drawFrame(video, canvas, null, count);
         }
       }
 
@@ -352,14 +326,13 @@ export default function IntegratedPhotoCapture(): React.JSX.Element {
         currentState === CaptureState.DETECTING_GESTURE ||
         currentState === CaptureState.GESTURE_DETECTED
       ) {
-        // 性能优化：降低全身检测频率，每帧检测一次
+        // 性能优化：降低全身检测频率，每5帧检测一次
         frameCountRef.current++;
         if (frameCountRef.current % 1 === 0) {
           // 只在检测帧获取 ImageData
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const { count, rect } = detectFullBody(imageData);
-          if (count >= 1 && rect) {
-            // 检测到至少一人
+          if (count === 1 && rect) {
             lastBodyDetectedTime.current = currentTime;
             lastBodyRectRef.current = rect;
           } else if (
@@ -812,7 +785,7 @@ export default function IntegratedPhotoCapture(): React.JSX.Element {
               <h4>全身识别</h4>
               <p>站在摄像头前，保持完整身体在画面中，持续1秒</p>
               <p className="step-note">
-                💡 支持多人检测，系统会自动选择最大的目标
+                ⚠️ 必须只有一人，超过1秒未检测到会重新开始
               </p>
             </div>
           </div>
