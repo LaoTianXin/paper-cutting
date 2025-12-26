@@ -11,6 +11,7 @@ import FullBodyExtract from "./FullBodyExtract";
 import IntegratedPhotoCapture from "./IntegratedPhotoCapture";
 import IntegratedVideoCapture from "./IntegratedVideoCapture";
 import IntegratedPhotoCaptureV2 from "./IntegratedPhotoCaptureV2";
+import IntegratedPhotoCaptureV3 from "./IntegratedPhotoCaptureV3";
 import "./index.css";
 
 type Mode =
@@ -22,8 +23,10 @@ type Mode =
   | "fullbody"
   | "extract"
   | "integrated"
-  | "integrated-video"
-  | "integrated-v2";
+  | "integrated-video"  | "integrated-v2"
+  | "integrated-v3"
+  | "fps-test"
+  | "native-fps-test";
 
 export default function App(): React.JSX.Element {
   const [modelLoaded, setModelLoaded] = React.useState<boolean>(false);
@@ -163,6 +166,27 @@ export default function App(): React.JSX.Element {
         >
           ✨ 智能拍照V2 (Pose)
         </button>
+        <button
+          className={mode === "integrated-v3" ? "active" : ""}
+          onClick={() => setMode("integrated-v3")}
+          style={{ backgroundColor: "#2196F3", color: "white" }}
+        >
+          🚀 智能拍照V3 (FPS)
+        </button>
+        <button
+          className={mode === "fps-test" ? "active" : ""}
+          onClick={() => setMode("fps-test")}
+          style={{ backgroundColor: "#FF9800", color: "white" }}
+        >
+          📊 FPS测试 (MP)
+        </button>
+        <button
+          className={mode === "native-fps-test" ? "active" : ""}
+          onClick={() => setMode("native-fps-test")}
+          style={{ backgroundColor: "#9C27B0", color: "white" }}
+        >
+          🌐 FPS测试 (Canvas)
+        </button>
       </div>
 
       {!modelLoaded && (
@@ -211,12 +235,15 @@ export default function App(): React.JSX.Element {
 
           {mode === "extract" && <FullBodyExtract />}
 
-          {mode === "integrated" && <IntegratedPhotoCapture />}
+      {mode === "integrated" && <IntegratedPhotoCapture />}
 
-          {mode === "integrated-video" && <IntegratedVideoCapture />}
+      {mode === "integrated-video" && <IntegratedVideoCapture />}
 
-          {mode === "integrated-v2" && <IntegratedPhotoCaptureV2 />}
+      {mode === "integrated-v2" && <IntegratedPhotoCaptureV2 />}
+
+      {mode === "integrated-v3" && <IntegratedPhotoCaptureV3 />}
         </>
+        
       )}
     </div>
   );
