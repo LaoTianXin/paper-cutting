@@ -1,6 +1,6 @@
 import {
   Pose,
-  Results as PoseResults,
+  type Results as PoseResults,
   POSE_CONNECTIONS,
 } from "@mediapipe/pose";
 
