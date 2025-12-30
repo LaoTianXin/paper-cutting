@@ -1,8 +1,11 @@
 export class ScreenAdaption {
-  constructor(
-    private targetX: number = 1920,
-    private targetY: number = 1080
-  ) {}
+  private targetX: number;
+  private targetY: number;
+
+  constructor(targetX: number = 720, targetY: number = 1280) {
+    this.targetX = targetX;
+    this.targetY = targetY;
+  }
 
   setScreenAdaptAttrs() {
     const { targetX, targetY } = this

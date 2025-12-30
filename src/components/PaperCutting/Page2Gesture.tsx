@@ -30,12 +30,12 @@ const Page2Gesture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvas
       {/* 4. UI layer - full screen, topmost */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 20 }}>
         {/* Logo at the top */}
-        <div className="absolute top-[12rem] left-1/2 transform -translate-x-1/2 pointer-events-auto">
+        <div className="absolute top-[4.8rem] left-1/2 transform -translate-x-1/2 pointer-events-auto">
           <img
             src={Page2Images.logo}
             alt="Logo"
             className="animate-fade-in"
-            style={{ height: '150px', width: 'auto', maxWidth: 'none' }}
+            style={{ height: '60px', width: 'auto', maxWidth: 'none' }}
           />
         </div>
 
@@ -45,9 +45,9 @@ const Page2Gesture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvas
           <div 
             className="absolute font-dabiaosong text-[#B80509] drop-shadow-lg text-center whitespace-nowrap"
             style={{ 
-              fontSize: '70px',
+              fontSize: '36px',
               lineHeight: '1.2',
-              bottom: '880px', // Fixed position from bottom
+              bottom: '342px', // Fixed position from bottom
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -61,7 +61,7 @@ const Page2Gesture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvas
           <div 
             className="absolute"
             style={{
-              bottom: '520px', // Adjustable position from bottom
+              bottom: '200px', // Adjustable position from bottom
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -69,7 +69,7 @@ const Page2Gesture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvas
             <img
               src={Page2Images.gestureIcon}
               alt="Gesture Icon"
-              className="w-[304px] h-auto"
+              className="w-[120px] h-auto"
             />
           </div>
 
@@ -78,9 +78,9 @@ const Page2Gesture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvas
             <div 
               className="absolute bg-white bg-opacity-30 rounded-full overflow-hidden backdrop-blur-sm"
               style={{ 
-                width: '300px',
-                height: '20px',
-                bottom: '400px',
+                width: '150px',
+                height: '8px',
+                bottom: '160px',
                 left: '50%',
                 transform: 'translateX(-50%)',
               }}

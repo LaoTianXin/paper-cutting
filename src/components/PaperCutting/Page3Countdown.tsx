@@ -30,12 +30,12 @@ const Page3Countdown: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanv
       {/* 4. UI layer - full screen, topmost */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 20 }}>
         {/* Logo at the top */}
-        <div className="absolute top-[12rem] left-1/2 transform -translate-x-1/2 pointer-events-auto">
+        <div className="absolute top-[4.8rem] left-1/2 transform -translate-x-1/2 pointer-events-auto">
           <img
             src={Page3Images.logo}
             alt="Logo"
             className="animate-fade-in"
-            style={{ height: '150px', width: 'auto', maxWidth: 'none' }}
+            style={{ height: '60px', width: 'auto', maxWidth: 'none' }}
           />
         </div>
 
@@ -45,9 +45,9 @@ const Page3Countdown: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanv
           <div 
             className="absolute font-dabiaosong text-[#B80509] drop-shadow-lg text-center whitespace-nowrap"
             style={{ 
-              fontSize: '70px',
+              fontSize: '36px',
               opacity: 0.9,
-              bottom: '880px',
+              bottom: '342px',
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -59,7 +59,7 @@ const Page3Countdown: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanv
           <div
             className="absolute"
             style={{
-              bottom: '520px',
+              bottom: '200px',
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -68,14 +68,14 @@ const Page3Countdown: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanv
               key={countdown}
               className="font-dabiaosong font-bold animate-countdown"
               style={{
-                fontSize: '200px',
+                fontSize: '80px',
                 color: '#B80509',
-                width: '280px',
-                height: '280px',
+                width: '112px',
+                height: '112px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '8px solid #B80509',
+                border: '3px solid #B80509',
                 borderRadius: '50%',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 backdropFilter: 'blur(10px)',

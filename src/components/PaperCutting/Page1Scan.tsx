@@ -28,12 +28,12 @@ const Page1Scan: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasEle
       {/* 4. UI layer - full screen, topmost */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 20 }}>
         {/* Logo at the top */}
-        <div className="absolute top-[12rem] left-1/2 transform -translate-x-1/2 pointer-events-auto">
+        <div className="absolute top-[4.8rem] left-1/2 transform -translate-x-1/2 pointer-events-auto">
           <img
             src={Page1Images.logo}
             alt="Logo"
             className="animate-fade-in"
-            style={{ height: '150px', width: 'auto', maxWidth: 'none' }}
+            style={{ height: '60px', width: 'auto', maxWidth: 'none' }}
           />
         </div>
 
@@ -43,9 +43,9 @@ const Page1Scan: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasEle
           <div 
             className="absolute font-dabiaosong text-[#B80509] drop-shadow-lg text-center whitespace-nowrap"
             style={{ 
-              fontSize: '70px',
+              fontSize: '36px',
               lineHeight: '1.2',
-              bottom: '880px', // Fixed position from bottom
+              bottom: '342px', // Fixed position from bottom (880px * 0.4)
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -59,7 +59,7 @@ const Page1Scan: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasEle
           <div 
             className="absolute"
             style={{
-              bottom: '520px', // Adjustable position from bottom (26rem = 416px)
+              bottom: '200px', // Adjustable position from bottom (520px * 0.4)
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -67,7 +67,7 @@ const Page1Scan: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasEle
             <img
               src={Page1Images.footprints}
               alt="Footprints"
-              className="w-[458px] h-auto"
+              className="w-[180px] h-auto"
             />
           </div>
         </div>

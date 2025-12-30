@@ -42,12 +42,12 @@ const Page4Capture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvas
       )}
 
       {/* Logo at the top */}
-      <div className="absolute top-[12rem] left-1/2 transform -translate-x-1/2 z-30">
+      <div className="absolute top-[4.8rem] left-1/2 transform -translate-x-1/2 z-30">
         <img
           src={Page4Images.logo}
           alt="Logo"
           className="animate-fade-in"
-          style={{ height: '150px', width: 'auto', maxWidth: 'none' }}
+          style={{ height: '60px', width: 'auto', maxWidth: 'none' }}
         />
       </div>
 
@@ -62,8 +62,8 @@ const Page4Capture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvas
       </div>
 
       {/* Capturing text */}
-      <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 z-40">
-        <div className="font-dabiaosong text-white text-3xl font-bold animate-pulse-slow"
+      <div className="absolute bottom-13 left-1/2 transform -translate-x-1/2 z-40">
+        <div className="font-dabiaosong text-white text-xl font-bold animate-pulse-slow"
           style={{
             textShadow: "0 0 20px rgba(0, 0, 0, 0.8)",
           }}

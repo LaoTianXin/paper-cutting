@@ -22,7 +22,7 @@ const CameraWithFrame: React.FC<CameraWithFrameProps> = ({
         style={{
           top: '39%',
           left: '50%',
-          width: '1008px', // 70% of 1440px (design width)
+          width: '400px', // 70% of 720px (design width)
           transform: 'translate(-50%, -50%)',
           zIndex: 10,
         }}

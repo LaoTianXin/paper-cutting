@@ -16,11 +16,11 @@ import Page5Display from "./components/PaperCutting/Page5Display";
  * PaperCuttingApp - Main orchestrator for the Paper-Cutting UI
  * Manages page transitions based on pose detection states
  * Integrates with existing MediaPipe pose detection system
- * Uses 9:20 aspect ratio screen adaptation (1440x3200)
+ * Uses 9:16 aspect ratio screen adaptation (720x1280)
  */
 const PaperCuttingApp: React.FC = () => {
-  // Apply 9:20 aspect ratio screen adaptation
-  useScreenAdaptation(1440, 3200);
+  // Apply 9:16 aspect ratio screen adaptation (720px × 1280px)
+  useScreenAdaptation(720, 1280);
   const [currentStage, setCurrentStage] = useState<PageStage>(PageStage.SCAN_START);
   const [capturedImage, setCapturedImage] = useState<string>("");
   const [detectionState, setDetectionState] = useState<DetectionState>({
