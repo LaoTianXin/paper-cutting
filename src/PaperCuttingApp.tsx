@@ -4,6 +4,7 @@ import type { DetectionState } from "./types/paperCutting";
 import { CaptureState } from "./types/capture";
 import { useMediaPipe } from "./hooks/useMediaPipe";
 import { useScreenAdaptation } from "./hooks/useScreenAdaptation";
+import { Page1Images, Page2Images, Page3Images, Page4Images } from "./constants/images";
 
 // Import page components
 import Page1Scan from "./components/PaperCutting/Page1Scan";
@@ -11,6 +12,7 @@ import Page2Gesture from "./components/PaperCutting/Page2Gesture";
 import Page3Countdown from "./components/PaperCutting/Page3Countdown";
 import Page4Capture from "./components/PaperCutting/Page4Capture";
 import Page5Display from "./components/PaperCutting/Page5Display";
+import CameraWithFrame from "./components/PaperCutting/CameraWithFrame";
 
 /**
  * PaperCuttingApp - Main orchestrator for the Paper-Cutting UI
@@ -23,6 +25,7 @@ const PaperCuttingApp: React.FC = () => {
   useScreenAdaptation(720, 1280);
   const [currentStage, setCurrentStage] = useState<PageStage>(PageStage.SCAN_START);
   const [capturedImage, setCapturedImage] = useState<string>("");
+  const [frozenFrameUrl, setFrozenFrameUrl] = useState<string>("");
   const [detectionState, setDetectionState] = useState<DetectionState>({
     personDetected: false,
     gestureDetected: false,
@@ -57,7 +60,16 @@ const PaperCuttingApp: React.FC = () => {
     error,
     countdown: mediaPipeCountdown,
     handleReset,
+    frozenFrame,
   } = useMediaPipe({ onCapture: handleCapture });
+
+  // Sync frozen frame from hook to state
+  useEffect(() => {
+    if (frozenFrame) {
+      setFrozenFrameUrl(frozenFrame);
+      console.log('PaperCuttingApp: frozen frame updated');
+    }
+  }, [frozenFrame]);
 
   // Map MediaPipe states to Page stages
   useEffect(() => {
@@ -97,6 +109,10 @@ const PaperCuttingApp: React.FC = () => {
         }));
         break;
 
+      case CaptureState.CAPTURING:
+        setCurrentStage(PageStage.PHOTO_CAPTURE);
+        break;
+
       case CaptureState.CAPTURE:
         setCurrentStage(PageStage.PHOTO_CAPTURE);
         break;
@@ -111,8 +127,25 @@ const PaperCuttingApp: React.FC = () => {
   const handleRestart = useCallback(() => {
     handleReset();
     setCapturedImage("");
+    setFrozenFrameUrl("");
     setCurrentStage(PageStage.SCAN_START);
   }, [handleReset]);
+
+  // Get current frame image based on stage
+  const getCurrentFrameImage = () => {
+    switch (currentStage) {
+      case PageStage.SCAN_START:
+        return Page1Images.paperCuttingFrame;
+      case PageStage.GESTURE_COMPARISON:
+        return Page2Images.paperCuttingFrame;
+      case PageStage.COUNTDOWN:
+        return Page3Images.paperCuttingFrame;
+      case PageStage.PHOTO_CAPTURE:
+        return Page4Images.paperCuttingFrame;
+      default:
+        return Page1Images.paperCuttingFrame;
+    }
+  };
 
   // Debug logging
   useEffect(() => {
@@ -123,16 +156,16 @@ const PaperCuttingApp: React.FC = () => {
   const renderCurrentPage = () => {
     switch (currentStage) {
       case PageStage.SCAN_START:
-        return <Page1Scan sourceRef={canvasRef} />;
+        return <Page1Scan />;
 
       case PageStage.GESTURE_COMPARISON:
-        return <Page2Gesture detectionState={detectionState} sourceRef={canvasRef} />;
+        return <Page2Gesture detectionState={detectionState} />;
 
       case PageStage.COUNTDOWN:
-        return <Page3Countdown detectionState={detectionState} sourceRef={canvasRef} />;
+        return <Page3Countdown detectionState={detectionState} />;
 
       case PageStage.PHOTO_CAPTURE:
-        return <Page4Capture sourceRef={canvasRef} />;
+        return <Page4Capture />;
 
       case PageStage.IMAGE_DISPLAY:
         return (
@@ -143,7 +176,7 @@ const PaperCuttingApp: React.FC = () => {
         );
 
       default:
-        return <Page1Scan sourceRef={canvasRef} />;
+        return <Page1Scan />;
     }
   };
 
@@ -167,8 +200,51 @@ const PaperCuttingApp: React.FC = () => {
         <canvas ref={capturedImageRef} />
       </div>
 
+      {/* Shared UI layer for Page 1-3: Background, Logo, Bottom Frame */}
+      {!isLoading && !error && (
+        currentStage === PageStage.SCAN_START ||
+        currentStage === PageStage.GESTURE_COMPARISON ||
+        currentStage === PageStage.COUNTDOWN
+      ) && (
+        <>
+          {/* Background layer - full screen */}
+          <div className="fixed inset-0" style={{ zIndex: 0 }}>
+            <img
+              src={Page1Images.background}
+              alt="Background"
+              className="w-full h-full object-cover"
+            />
+          </div>
 
+          {/* Logo at the top */}
+          <div className="fixed top-[4.8rem] left-1/2 transform -translate-x-1/2 pointer-events-auto" style={{ zIndex: 25 }}>
+            <img
+              src={Page1Images.logo}
+              alt="Logo"
+              className="animate-fade-in"
+              style={{ height: '60px', width: 'auto', maxWidth: 'none' }}
+            />
+          </div>
 
+          {/* Bottom frame */}
+          <div className="fixed bottom-0 left-0 right-0" style={{ zIndex: 25 }}>
+            <img
+              src={Page1Images.bottomFrame}
+              alt="Bottom Frame"
+              className="w-full h-auto"
+            />
+          </div>
+        </>
+      )}
+
+      {/* Persistent camera component - shown for all stages except IMAGE_DISPLAY */}
+      {!isLoading && !error && currentStage !== PageStage.IMAGE_DISPLAY && (
+        <CameraWithFrame 
+          sourceRef={canvasRef} 
+          frameImage={getCurrentFrameImage()}
+          frozenFrameUrl={currentStage === PageStage.PHOTO_CAPTURE ? frozenFrameUrl : undefined}
+        />
+      )}
 
       {/* Page content - rendered directly without wrapper */}
       {!isLoading && !error && renderCurrentPage()}

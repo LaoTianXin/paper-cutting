@@ -5,7 +5,8 @@ export const CaptureState = {
   DETECTING_GESTURE: "detecting_gesture",
   GESTURE_DETECTED: "gesture_detected",
   COUNTDOWN: "countdown",
-  CAPTURE: "capture",
+  CAPTURING: "capturing", // 拍照中（显示快门效果）
+  CAPTURE: "capture", // 执行实际截图
   COMPLETED: "completed",
 } as const;
 

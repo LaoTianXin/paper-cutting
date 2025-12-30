@@ -4,6 +4,7 @@ import CameraFeed from './CameraFeed';
 interface CameraWithFrameProps {
   sourceRef: React.RefObject<HTMLCanvasElement | null>;
   frameImage: string;
+  frozenFrameUrl?: string;
 }
 
 /**
@@ -13,6 +14,7 @@ interface CameraWithFrameProps {
 const CameraWithFrame: React.FC<CameraWithFrameProps> = ({
   sourceRef,
   frameImage,
+  frozenFrameUrl,
 }) => {
   return (
     <>
@@ -37,6 +39,7 @@ const CameraWithFrame: React.FC<CameraWithFrameProps> = ({
           {/* Camera layer fills container */}
           <CameraFeed 
             sourceRef={sourceRef}
+            frozenFrameUrl={frozenFrameUrl}
             style={{
               position: 'absolute',
               inset: 0,

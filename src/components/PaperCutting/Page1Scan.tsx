@@ -1,42 +1,16 @@
 import React from "react";
-import CameraWithFrame from "./CameraWithFrame";
 import { Page1Images } from "../../constants/images";
 import type { PageProps } from "../../types/paperCutting";
 
 /**
  * Page 1: Scan Start Stage
- * Flat hierarchy: Background → Camera → Frame → UI
+ * Only renders UI decorations - camera is handled by PaperCuttingApp
  */
-const Page1Scan: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasElement | null> }> = ({ sourceRef }) => {
+const Page1Scan: React.FC<PageProps> = () => {
   return (
     <>
-      {/* 1. Background layer - full screen */}
-      <div className="fixed inset-0" style={{ zIndex: 0 }}>
-        <img
-          src={Page1Images.background}
-          alt="Background"
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* 2 & 3. Camera and Frame layers */}
-      <CameraWithFrame 
-        sourceRef={sourceRef} 
-        frameImage={Page1Images.paperCuttingFrame} 
-      />
-
-      {/* 4. UI layer - full screen, topmost */}
+      {/* Page-specific content only */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 20 }}>
-        {/* Logo at the top */}
-        <div className="absolute top-[4.8rem] left-1/2 transform -translate-x-1/2 pointer-events-auto">
-          <img
-            src={Page1Images.logo}
-            alt="Logo"
-            className="animate-fade-in"
-            style={{ height: '60px', width: 'auto', maxWidth: 'none' }}
-          />
-        </div>
-
         {/* Main content area */}
         <div className="relative h-full pointer-events-none">
           {/* Fixed position text */}
@@ -45,7 +19,7 @@ const Page1Scan: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasEle
             style={{ 
               fontSize: '36px',
               lineHeight: '1.2',
-              bottom: '342px', // Fixed position from bottom (880px * 0.4)
+              bottom: '342px',
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -59,7 +33,7 @@ const Page1Scan: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasEle
           <div 
             className="absolute"
             style={{
-              bottom: '200px', // Adjustable position from bottom (520px * 0.4)
+              bottom: '200px',
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -70,15 +44,6 @@ const Page1Scan: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasEle
               className="w-[180px] h-auto"
             />
           </div>
-        </div>
-
-        {/* Bottom frame */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <img
-            src={Page1Images.bottomFrame}
-            alt="Bottom Frame"
-            className="w-full h-auto"
-          />
         </div>
       </div>
     </>

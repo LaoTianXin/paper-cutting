@@ -6,6 +6,7 @@ interface CameraFeedProps {
   style?: React.CSSProperties;
   width?: number; // Optional: use parent's width
   height?: number; // Optional: use parent's height
+  frozenFrameUrl?: string; // Optional: if provided, display this frozen image instead of live feed
 }
 
 /**
@@ -13,7 +14,7 @@ interface CameraFeedProps {
  * Uses requestAnimationFrame to continuously copy from source canvas
  * Canvas size is responsive: 60% of page width with 9:16 aspect ratio (or uses provided dimensions)
  */
-const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', style = {}, width, height }) => {
+const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', style = {}, width, height, frozenFrameUrl }) => {
   const displayCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
@@ -59,6 +60,45 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
     let frameCount = 0;
     let sourceInitialized = false;
 
+    // If frozen frame is provided, display it instead of live feed
+    if (frozenFrameUrl && canvasDimensions.width > 0) {
+      const displayCanvas = displayCanvasRef.current;
+      if (displayCanvas) {
+        const ctx = displayCanvas.getContext('2d');
+        if (ctx) {
+          const displayWidth = canvasDimensions.width;
+          const displayHeight = canvasDimensions.height;
+          
+          displayCanvas.width = displayWidth;
+          displayCanvas.height = displayHeight;
+
+          const img = new Image();
+          img.onload = () => {
+            try {
+              // Frozen frame is already cropped to 9:16, just draw it directly
+              // Clear canvas first
+              ctx.clearRect(0, 0, displayWidth, displayHeight);
+              // Draw the frozen image to fill the canvas
+              ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+              console.log('CameraFeed: frozen frame displayed (9:16 cropped)');
+            } catch (err) {
+              console.error('CameraFeed: error drawing frozen frame', err);
+            }
+          };
+          img.onerror = (err) => {
+            console.error('CameraFeed: error loading frozen frame', err);
+          };
+          img.src = frozenFrameUrl;
+        }
+      }
+      
+      // No cleanup needed for frozen frame
+      return () => {
+        console.log('CameraFeed: frozen frame mode stopped');
+      };
+    }
+
+    // Normal live feed mode
     const draw = () => {
       const displayCanvas = displayCanvasRef.current;
       const sourceCanvas = sourceRef.current;
@@ -125,7 +165,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
       if (animationId) cancelAnimationFrame(animationId);
       console.log('CameraFeed: loop stopped');
     };
-  }, [sourceRef, canvasDimensions]);
+  }, [sourceRef, canvasDimensions, frozenFrameUrl]);
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', ...style }}>

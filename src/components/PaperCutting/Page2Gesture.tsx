@@ -1,44 +1,18 @@
 import React from "react";
-import CameraWithFrame from "./CameraWithFrame";
 import { Page2Images } from "../../constants/images";
 import type { PageProps } from "../../types/paperCutting";
 
 /**
  * Page 2: Gesture Comparison Stage
- * Flat hierarchy: Background → Camera → Frame → UI
+ * Only renders UI decorations - camera is handled by PaperCuttingApp
  */
-const Page2Gesture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasElement | null> }> = ({ detectionState, sourceRef }) => {
+const Page2Gesture: React.FC<PageProps> = ({ detectionState }) => {
   const confidence = detectionState?.gestureConfidence ?? 0;
 
   return (
     <>
-      {/* 1. Background layer - full screen */}
-      <div className="fixed inset-0" style={{ zIndex: 0 }}>
-        <img
-          src={Page2Images.background}
-          alt="Background"
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* 2 & 3. Camera and Frame layers */}
-      <CameraWithFrame 
-        sourceRef={sourceRef} 
-        frameImage={Page2Images.paperCuttingFrame} 
-      />
-
-      {/* 4. UI layer - full screen, topmost */}
+      {/* Page-specific content only */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 20 }}>
-        {/* Logo at the top */}
-        <div className="absolute top-[4.8rem] left-1/2 transform -translate-x-1/2 pointer-events-auto">
-          <img
-            src={Page2Images.logo}
-            alt="Logo"
-            className="animate-fade-in"
-            style={{ height: '60px', width: 'auto', maxWidth: 'none' }}
-          />
-        </div>
-
         {/* Main content area */}
         <div className="relative h-full pointer-events-none">
           {/* Fixed position text */}
@@ -47,7 +21,7 @@ const Page2Gesture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvas
             style={{ 
               fontSize: '36px',
               lineHeight: '1.2',
-              bottom: '342px', // Fixed position from bottom
+              bottom: '342px',
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -61,7 +35,7 @@ const Page2Gesture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvas
           <div 
             className="absolute"
             style={{
-              bottom: '200px', // Adjustable position from bottom
+              bottom: '200px',
               left: '50%',
               transform: 'translateX(-50%)',
             }}
@@ -91,15 +65,6 @@ const Page2Gesture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvas
               />
             </div>
           )}
-        </div>
-
-        {/* Bottom frame */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <img
-            src={Page2Images.bottomFrame}
-            alt="Bottom Frame"
-            className="w-full h-auto"
-          />
         </div>
       </div>
     </>

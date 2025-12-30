@@ -32,6 +32,9 @@ import page4ShutterEffect2 from "../assets/images/page4/shutter-effect-2.png";
 import page4ShutterEffect3 from "../assets/images/page4/shutter-effect-3.png";
 import page4ShutterEffect4 from "../assets/images/page4/shutter-effect-4.png";
 import page4Logo from "../assets/images/page4/logo.png";
+import page4Background from "../assets/images/page4/background.png";
+import page4PaperCuttingFrame from "../assets/images/page4/paper-cutting-frame.png";
+
 
 // Page 5 - Image Display
 import page5Frame from "../assets/images/page5/frame.png";
@@ -75,6 +78,7 @@ export const Page3Images = {
 };
 
 export const Page4Images = {
+  background: page4Background,
   frame: page4Frame,
   shutterEffects: [
     page4ShutterEffect1,
@@ -83,6 +87,7 @@ export const Page4Images = {
     page4ShutterEffect4,
   ],
   logo: page4Logo,
+  paperCuttingFrame: page4PaperCuttingFrame,
 };
 
 export const Page5Images = {

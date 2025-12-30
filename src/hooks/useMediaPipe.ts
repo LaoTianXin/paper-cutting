@@ -28,6 +28,7 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
   const bodyDetectionStartTime = React.useRef<number | null>(null);
   const lastBodyDetectedTime = React.useRef<number | null>(null);
   const gestureDetectionStartTime = React.useRef<number | null>(null);
+  const gestureLastLostTime = React.useRef<number | null>(null);
   const lastBodyRectRef = React.useRef<BodyRect | null>(null);
   const lastPoseLandmarksRef = React.useRef<PoseResults["poseLandmarks"] | null>(null);
   const frameCountRef = React.useRef<number>(0);
@@ -35,6 +36,12 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
   const poseRef = React.useRef<Pose | null>(null);
   const handsRef = React.useRef<Hands | null>(null);
   const cameraRef = React.useRef<Camera | null>(null);
+  
+  // 保存最新的结果用于绘制
+  const latestPoseResultsRef = React.useRef<PoseResults | null>(null);
+  const latestHandsResultsRef = React.useRef<Results | null>(null);
+  const pendingDrawRef = React.useRef<boolean>(false);
+  const frozenFrameRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     stateRef.current = state;
@@ -42,127 +49,196 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     statusMessageRef.current = statusMessage;
   }, [state, countdown, statusMessage]);
 
-  const onPoseResults = React.useCallback((results: PoseResults) => {
+  // 统一的绘制函数，在 requestAnimationFrame 中调用
+  const draw = React.useCallback(() => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video) return;
+    if (!canvas || !video) {
+      pendingDrawRef.current = false;
+      return;
+    }
 
-    const currentTime = Date.now();
-    const currentState = stateRef.current;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      pendingDrawRef.current = false;
+      return;
+    }
 
-    if (
+    const currentState = stateRef.current;
+    const poseResults = latestPoseResultsRef.current;
+    const handsResults = latestHandsResultsRef.current;
+
+    // 清空画布并绘制视频帧
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 始终使用 video 元素作为绘制源，保持一致性，避免切换时闪烁
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // 绘制 pose landmarks 和全身框（在非手势检测状态）
+    if (poseResults && poseResults.poseLandmarks && (
       currentState === CaptureState.IDLE ||
       currentState === CaptureState.DETECTING_BODY ||
       currentState === CaptureState.BODY_DETECTED ||
-      currentState === CaptureState.DETECTING_GESTURE ||
-      currentState === CaptureState.GESTURE_DETECTED ||
       currentState === CaptureState.COUNTDOWN ||
       currentState === CaptureState.COMPLETED
-    ) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    )) {
+      const rect = calculateBodyRect(poseResults.poseLandmarks, canvas.width, canvas.height);
+      if (rect) {
+        if (
+          currentState === CaptureState.IDLE ||
+          currentState === CaptureState.DETECTING_BODY ||
+          currentState === CaptureState.BODY_DETECTED
+        ) {
+          drawConnectors(ctx, poseResults.poseLandmarks, POSE_CONNECTIONS, { color: "#00FF00", lineWidth: 2 });
+          drawLandmarks(ctx, poseResults.poseLandmarks, { color: "#FF0000", radius: 3 });
+          ctx.strokeStyle = "#00FF00";
+          ctx.lineWidth = 4;
+          ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+          ctx.fillStyle = "#00FF00";
+          ctx.font = "bold 12px Arial";
+          ctx.fillText("全身已检测", rect.x, rect.y - 10);
+        } else if (currentState === CaptureState.COUNTDOWN) {
+          ctx.strokeStyle = "#00FF00";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+        } else if (currentState === CaptureState.COMPLETED) {
+          ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+        }
+      }
+    }
 
-      if (results.poseLandmarks) {
-        const rect = calculateBodyRect(results.poseLandmarks, canvas.width, canvas.height);
-        if (rect) {
-          lastBodyDetectedTime.current = currentTime;
-          lastBodyRectRef.current = rect;
-          lastPoseLandmarksRef.current = results.poseLandmarks;
+    // 绘制全身框（在手势检测状态，使用缓存的框）
+    if ((currentState === CaptureState.DETECTING_GESTURE || currentState === CaptureState.GESTURE_DETECTED) && lastBodyRectRef.current) {
+      ctx.strokeStyle = "rgba(0, 255, 0, 0.8)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(lastBodyRectRef.current.x, lastBodyRectRef.current.y, lastBodyRectRef.current.width, lastBodyRectRef.current.height);
+    }
 
-          if (
-            currentState === CaptureState.IDLE ||
-            currentState === CaptureState.DETECTING_BODY ||
-            currentState === CaptureState.BODY_DETECTED
-          ) {
-            drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, { color: "#00FF00", lineWidth: 2 });
-            drawLandmarks(ctx, results.poseLandmarks, { color: "#FF0000", radius: 3 });
-            ctx.strokeStyle = "#00FF00";
-            ctx.lineWidth = 4;
-            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
-            ctx.fillStyle = "#00FF00";
-            ctx.font = "bold 12px Arial";
-            ctx.fillText("全身已检测", rect.x, rect.y - 10);
-          } else if (currentState === CaptureState.COUNTDOWN) {
-            ctx.strokeStyle = "#00FF00";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
-          } else if (currentState === CaptureState.COMPLETED) {
-            ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
-          }
+    // 绘制手部 landmarks 和 OK 手势（在手势检测状态）
+    if (handsResults && handsResults.multiHandLandmarks && handsResults.multiHandLandmarks.length > 0 &&
+        (currentState === CaptureState.DETECTING_GESTURE || currentState === CaptureState.GESTURE_DETECTED)) {
+      for (const landmarks of handsResults.multiHandLandmarks) {
+        drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 3 });
+        drawLandmarks(ctx, landmarks, { color: "#FF0000", lineWidth: 1, radius: 4 });
 
-          if (currentState !== CaptureState.COMPLETED) {
-            if (currentState === CaptureState.IDLE) {
-              setState(CaptureState.DETECTING_BODY);
-              bodyDetectionStartTime.current = currentTime;
-              setStatusMessage("正在检测全身...");
-            } else if (currentState === CaptureState.DETECTING_BODY) {
-              if (bodyDetectionStartTime.current && currentTime - bodyDetectionStartTime.current >= 1000) {
-                setState(CaptureState.DETECTING_GESTURE);
-                setStatusMessage("✓ 已识别到全身，请做出OK手势");
-              }
+        const gestureResult = recognizeOKGesture(landmarks);
+        if (gestureResult.isOK) {
+          ctx.font = "bold 24px Arial";
+          ctx.fillStyle = "#00FF00";
+          ctx.strokeStyle = "#000000";
+          ctx.lineWidth = 2;
+          const text = "OK 👌";
+          const textWidth = ctx.measureText(text).width;
+          ctx.strokeText(text, (canvas.width - textWidth) / 2, 80);
+          ctx.fillText(text, (canvas.width - textWidth) / 2, 80);
+        }
+      }
+    }
+
+    // 绘制倒计时
+    if (currentState === CaptureState.COUNTDOWN) {
+      ctx.fillStyle = "#FFD700";
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 3;
+      ctx.font = "bold 60px Arial";
+      const text = countdownRef.current.toString();
+      const textWidth = ctx.measureText(text).width;
+      ctx.strokeText(text, (canvas.width - textWidth) / 2, canvas.height / 2);
+      ctx.fillText(text, (canvas.width - textWidth) / 2, canvas.height / 2);
+    }
+
+    // 绘制状态消息
+    const currentStatusMessage = statusMessageRef.current;
+    if (currentStatusMessage && currentState !== CaptureState.COUNTDOWN) {
+      ctx.fillStyle = "#FFFFFF";
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 2;
+      ctx.font = "bold 16px Arial";
+      const textWidth = ctx.measureText(currentStatusMessage).width;
+      ctx.strokeText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
+      ctx.fillText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
+    }
+
+    pendingDrawRef.current = false;
+  }, []);
+
+  // 请求绘制
+  const requestDraw = React.useCallback(() => {
+    if (!pendingDrawRef.current) {
+      pendingDrawRef.current = true;
+      requestAnimationFrame(draw);
+    }
+  }, [draw]);
+
+  const onPoseResults = React.useCallback((results: PoseResults) => {
+    const currentTime = Date.now();
+    const currentState = stateRef.current;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // 保存最新的结果
+    latestPoseResultsRef.current = results;
+
+    // 处理全身检测逻辑
+    if (results.poseLandmarks) {
+      const rect = calculateBodyRect(results.poseLandmarks, canvas.width, canvas.height);
+      if (rect) {
+        lastBodyDetectedTime.current = currentTime;
+        lastBodyRectRef.current = rect;
+        lastPoseLandmarksRef.current = results.poseLandmarks;
+
+        if (currentState !== CaptureState.COMPLETED) {
+          if (currentState === CaptureState.IDLE) {
+            setState(CaptureState.DETECTING_BODY);
+            bodyDetectionStartTime.current = currentTime;
+            setStatusMessage("正在检测全身...");
+          } else if (currentState === CaptureState.DETECTING_BODY) {
+            if (bodyDetectionStartTime.current && currentTime - bodyDetectionStartTime.current >= 1000) {
+              setState(CaptureState.DETECTING_GESTURE);
+              setStatusMessage("✓ 已识别到全身，请做出OK手势");
             }
           }
         }
-      } else {
-        if (currentState === CaptureState.DETECTING_BODY) {
-          if (lastBodyDetectedTime.current && currentTime - lastBodyDetectedTime.current >= 1000) {
-            setState(CaptureState.IDLE);
-            bodyDetectionStartTime.current = null;
-            lastBodyDetectedTime.current = null;
-            lastPoseLandmarksRef.current = null;
-            setStatusMessage("❌ 未识别到全身，请重新站位");
-            setTimeout(() => setStatusMessage(""), 1500);
-          }
+      }
+    } else {
+      // 全身丢失处理
+      if (currentState === CaptureState.DETECTING_BODY) {
+        if (lastBodyDetectedTime.current && currentTime - lastBodyDetectedTime.current >= 1000) {
+          setState(CaptureState.IDLE);
+          bodyDetectionStartTime.current = null;
+          lastBodyDetectedTime.current = null;
+          lastPoseLandmarksRef.current = null;
+          setStatusMessage("❌ 未识别到全身，请重新站位");
+          setTimeout(() => setStatusMessage(""), 1500);
         }
       }
-
-      if (currentState === CaptureState.COUNTDOWN) {
-        ctx.fillStyle = "#FFD700";
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 3;
-        ctx.font = "bold 60px Arial";
-        const text = countdownRef.current.toString();
-        const textWidth = ctx.measureText(text).width;
-        ctx.strokeText(text, (canvas.width - textWidth) / 2, canvas.height / 2);
-        ctx.fillText(text, (canvas.width - textWidth) / 2, canvas.height / 2);
-      }
-
-      const currentStatusMessage = statusMessageRef.current;
-      if (currentStatusMessage && currentState !== CaptureState.COUNTDOWN) {
-        ctx.fillStyle = "#FFFFFF";
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 2;
-        ctx.font = "bold 16px Arial";
-        const textWidth = ctx.measureText(currentStatusMessage).width;
-        ctx.strokeText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
-        ctx.fillText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
-      }
     }
-  }, []);
+
+    // 请求绘制
+    requestDraw();
+  }, [requestDraw]);
 
   const onHandsResults = React.useCallback((results: Results) => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video) return;
-
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
-
     const currentTime = Date.now();
     const currentState = stateRef.current;
+    const video = videoRef.current;
+    if (!video) return;
+
+    // 保存最新的结果
+    latestHandsResultsRef.current = results;
 
     if (currentState === CaptureState.DETECTING_GESTURE || currentState === CaptureState.GESTURE_DETECTED) {
+      // 每5帧检测一次pose，减少更新频率，避免闪动
       frameCountRef.current++;
-      if (frameCountRef.current % 3 === 0 && poseRef.current && video) {
+      if (frameCountRef.current % 5 === 0 && poseRef.current && video) {
         try {
           poseRef.current.send({ image: video }).catch(() => {});
         } catch (err) {}
       }
 
+      // 检查全身是否丢失
       if (lastBodyDetectedTime.current && currentTime - lastBodyDetectedTime.current >= 1000) {
         setState(CaptureState.IDLE);
         bodyDetectionStartTime.current = null;
@@ -171,48 +247,26 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         frameCountRef.current = 0;
         setStatusMessage("❌ 全身丢失，重新检测");
         setTimeout(() => setStatusMessage(""), 1500);
+        requestDraw();
         return;
       }
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
-
-      if (lastBodyRectRef.current) {
-        const timeSinceDetection = lastBodyDetectedTime.current ? currentTime - lastBodyDetectedTime.current : 999999;
-        if (timeSinceDetection < 500) ctx.strokeStyle = "rgba(0, 255, 0, 0.8)";
-        else if (timeSinceDetection < 1000) ctx.strokeStyle = "rgba(255, 255, 0, 0.8)";
-        else ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
-
-        ctx.lineWidth = 3;
-        ctx.strokeRect(lastBodyRectRef.current.x, lastBodyRectRef.current.y, lastBodyRectRef.current.width, lastBodyRectRef.current.height);
-      }
-
+      // 检测 OK 手势
       let isOKDetected = false;
-      let maxConfidence = 0;
-
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         for (const landmarks of results.multiHandLandmarks) {
-          drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 3 });
-          drawLandmarks(ctx, landmarks, { color: "#FF0000", lineWidth: 1, radius: 4 });
-
           const gestureResult = recognizeOKGesture(landmarks);
           if (gestureResult.isOK) {
             isOKDetected = true;
-            maxConfidence = Math.max(maxConfidence, gestureResult.confidence);
-
-            ctx.font = "bold 24px Arial";
-            ctx.fillStyle = "#00FF00";
-            ctx.strokeStyle = "#000000";
-            ctx.lineWidth = 2;
-            const text = "OK 👌";
-            const textWidth = ctx.measureText(text).width;
-            ctx.strokeText(text, (canvas.width - textWidth) / 2, 80);
-            ctx.fillText(text, (canvas.width - textWidth) / 2, 80);
+            break;
           }
         }
       }
 
+      // 处理手势状态
       if (isOKDetected) {
+        gestureLastLostTime.current = null;
+        
         if (currentState === CaptureState.DETECTING_GESTURE) {
           gestureDetectionStartTime.current = currentTime;
           setState(CaptureState.GESTURE_DETECTED);
@@ -229,25 +283,24 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
           }
         }
       } else {
+        // 手势未检测到
         if (currentState === CaptureState.GESTURE_DETECTED) {
-          setState(CaptureState.DETECTING_GESTURE);
-          gestureDetectionStartTime.current = null;
-          setStatusMessage("请做出OK手势");
+          // 只有在手势持续丢失300ms后才切换状态，避免闪动
+          if (gestureLastLostTime.current === null) {
+            gestureLastLostTime.current = currentTime;
+          } else if (currentTime - gestureLastLostTime.current >= 300) {
+            setState(CaptureState.DETECTING_GESTURE);
+            gestureDetectionStartTime.current = null;
+            gestureLastLostTime.current = null;
+            setStatusMessage("请做出OK手势");
+          }
         }
       }
 
-      const currentStatusMessage = statusMessageRef.current;
-      if (currentStatusMessage) {
-        ctx.fillStyle = "#FFFFFF";
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 2;
-        ctx.font = "bold 16px Arial";
-        const textWidth = ctx.measureText(currentStatusMessage).width;
-        ctx.strokeText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
-        ctx.fillText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
-      }
+      // 请求绘制
+      requestDraw();
     }
-  }, []);
+  }, [requestDraw]);
 
   React.useEffect(() => {
     if (state === CaptureState.COUNTDOWN) {
@@ -255,10 +308,73 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
         return () => clearTimeout(timer);
       } else {
-        setState(CaptureState.CAPTURE);
+        // 倒计时结束，捕获当前帧作为frozen frame
+        // 从 video 元素捕获，而不是 canvas，这样不会包含线框和倒计时
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        if (video && canvas) {
+          try {
+            // 创建临时 canvas 用于捕获和裁剪
+            const tempCanvas = document.createElement('canvas');
+            const sourceWidth = video.videoWidth || 640;
+            const sourceHeight = video.videoHeight || 480;
+            
+            // 计算 9:16 裁剪区域（与 CameraFeed 中的逻辑一致）
+            const targetAspect = 9 / 16;
+            const sourceAspect = sourceWidth / sourceHeight;
+            
+            let cropWidth, cropHeight, cropX, cropY;
+            if (sourceAspect > targetAspect) {
+              // Source is wider, crop the width
+              cropHeight = sourceHeight;
+              cropWidth = sourceHeight * targetAspect;
+              cropX = (sourceWidth - cropWidth) / 2;
+              cropY = 0;
+            } else {
+              // Source is taller, crop the height
+              cropWidth = sourceWidth;
+              cropHeight = sourceWidth / targetAspect;
+              cropX = 0;
+              cropY = (sourceHeight - cropHeight) / 2;
+            }
+            
+            // 设置临时 canvas 为裁剪后的尺寸
+            tempCanvas.width = cropWidth;
+            tempCanvas.height = cropHeight;
+            
+            const tempCtx = tempCanvas.getContext('2d');
+            if (tempCtx) {
+              // 从 video 绘制裁剪后的区域到临时 canvas
+              tempCtx.drawImage(
+                video,
+                cropX, cropY, cropWidth, cropHeight,
+                0, 0, cropWidth, cropHeight
+              );
+              
+              // 转换为 data URL
+              const frozenFrameUrl = tempCanvas.toDataURL('image/png');
+              frozenFrameRef.current = frozenFrameUrl;
+              console.log('✅ Frozen frame captured at countdown end (clean, 9:16 cropped)');
+            }
+          } catch (err) {
+            console.error('❌ Failed to capture frozen frame:', err);
+          }
+        }
+        // 立即进入拍照中状态显示快门效果
+        setState(CaptureState.CAPTURING);
       }
     }
   }, [state, countdown]);
+
+  // Handle capturing state - show shutter effect then take photo
+  React.useEffect(() => {
+    if (state === CaptureState.CAPTURING) {
+      const captureTimer = setTimeout(() => {
+        setState(CaptureState.CAPTURE);
+      }, 300000); // 3秒拍照延迟，显示快门效果
+      return () => clearTimeout(captureTimer);
+    }
+  }, [state]);
 
   // Handle photo capture
   React.useEffect(() => {
@@ -352,19 +468,30 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
           onFrame: async () => {
             if (!mounted || !videoRef.current) return;
             const currentState = stateRef.current;
+            
             try {
+              // 在手势检测阶段同时运行 pose 和 hands
               if (
-                currentState === CaptureState.IDLE ||
-                currentState === CaptureState.DETECTING_BODY ||
-                currentState === CaptureState.BODY_DETECTED ||
-                currentState === CaptureState.COMPLETED
+                currentState === CaptureState.DETECTING_GESTURE ||
+                currentState === CaptureState.GESTURE_DETECTED
               ) {
-                if (pose && mounted) await pose.send({ image: videoRef.current });
+                // 不等待 pose 完成，让它在后台运行
+                if (pose && mounted) {
+                  pose.send({ image: videoRef.current }).catch(() => {});
+                }
+                // hands 是主要处理，等待它完成
+                if (hands && mounted) {
+                  await hands.send({ image: videoRef.current });
+                }
               } else {
-                if (pose && mounted) await pose.send({ image: videoRef.current });
-                if (hands && mounted) await hands.send({ image: videoRef.current });
+                // 其他状态只运行 pose
+                if (pose && mounted) {
+                  await pose.send({ image: videoRef.current });
+                }
               }
-            } catch (err) {}
+            } catch (err) {
+              // 忽略错误，继续下一帧
+            }
           },
           width: 640,
           height: 480,
@@ -375,6 +502,18 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         console.log('✅ 摄像头启动成功！');
         
         cameraRef.current = camera;
+        
+        // 预热 hands 模型，避免首次使用时卡顿
+        console.log('预热 hands 模型...');
+        if (videoRef.current && hands) {
+          try {
+            await hands.send({ image: videoRef.current });
+            console.log('✅ hands 模型预热完成');
+          } catch (err) {
+            console.log('预热失败，但不影响使用');
+          }
+        }
+        
         setIsLoading(false);
         setState(CaptureState.IDLE);
         setStatusMessage("站在摄像头前开始检测");
@@ -400,6 +539,7 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     };
   }, [videoReady, onHandsResults, onPoseResults]);
 
+  
   const handleReset = () => {
     setState(CaptureState.IDLE);
     setStatusMessage("");
@@ -407,9 +547,11 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     bodyDetectionStartTime.current = null;
     lastBodyDetectedTime.current = null;
     gestureDetectionStartTime.current = null;
+    gestureLastLostTime.current = null;
     lastBodyRectRef.current = null;
     lastPoseLandmarksRef.current = null;
     frameCountRef.current = 0;
+    frozenFrameRef.current = null;
   };
 
   return {
@@ -421,5 +563,6 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     statusMessage,
     countdown,
     handleReset,
+    frozenFrame: frozenFrameRef.current,
   };
 }
