@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import PageContainer from "./PageContainer";
+import CameraWithFrame from "./CameraWithFrame";
 import { Page4Images } from "../../constants/images";
 import type { PageProps } from "../../types/paperCutting";
 
@@ -8,7 +9,7 @@ import type { PageProps } from "../../types/paperCutting";
  * Displays during photo capture with shutter animation
  * Shows sequential shutter effects
  */
-const Page4Capture: React.FC<PageProps> = () => {
+const Page4Capture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasElement | null> }> = ({ sourceRef }) => {
   const [shutterIndex, setShutterIndex] = useState(0);
   const [showFlash, setShowFlash] = useState(false);
 
@@ -29,22 +30,29 @@ const Page4Capture: React.FC<PageProps> = () => {
 
   return (
     <PageContainer transparent={true}>
+      {/* Camera and Frame layer */}
+      <CameraWithFrame 
+        sourceRef={sourceRef} 
+        frameImage={Page4Images.frame} 
+      />
+
       {/* Flash effect */}
       {showFlash && (
         <div className="absolute inset-0 bg-white z-50 animate-fade-out" />
       )}
 
       {/* Logo at the top */}
-      <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-20">
+      <div className="absolute top-[12rem] left-1/2 transform -translate-x-1/2 z-30">
         <img
           src={Page4Images.logo}
           alt="Logo"
-          className="h-16 w-auto"
+          className="animate-fade-in"
+          style={{ height: '150px', width: 'auto', maxWidth: 'none' }}
         />
       </div>
 
       {/* Shutter effect overlay */}
-      <div className="absolute inset-0 flex items-center justify-center z-30">
+      <div className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none">
         <img
           src={Page4Images.shutterEffects[shutterIndex]}
           alt="Shutter Effect"
@@ -54,7 +62,7 @@ const Page4Capture: React.FC<PageProps> = () => {
       </div>
 
       {/* Capturing text */}
-      <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 z-20">
+      <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 z-40">
         <div className="font-dabiaosong text-white text-3xl font-bold animate-pulse-slow"
           style={{
             textShadow: "0 0 20px rgba(0, 0, 0, 0.8)",

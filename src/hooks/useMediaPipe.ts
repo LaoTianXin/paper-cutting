@@ -82,7 +82,7 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
             ctx.lineWidth = 4;
             ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
             ctx.fillStyle = "#00FF00";
-            ctx.font = "bold 24px Arial";
+            ctx.font = "bold 12px Arial";
             ctx.fillText("全身已检测", rect.x, rect.y - 10);
           } else if (currentState === CaptureState.COUNTDOWN) {
             ctx.strokeStyle = "#00FF00";
@@ -123,8 +123,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
       if (currentState === CaptureState.COUNTDOWN) {
         ctx.fillStyle = "#FFD700";
         ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 5;
-        ctx.font = "bold 120px Arial";
+        ctx.lineWidth = 3;
+        ctx.font = "bold 60px Arial";
         const text = countdownRef.current.toString();
         const textWidth = ctx.measureText(text).width;
         ctx.strokeText(text, (canvas.width - textWidth) / 2, canvas.height / 2);
@@ -135,8 +135,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
       if (currentStatusMessage && currentState !== CaptureState.COUNTDOWN) {
         ctx.fillStyle = "#FFFFFF";
         ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 3;
-        ctx.font = "bold 32px Arial";
+        ctx.lineWidth = 2;
+        ctx.font = "bold 16px Arial";
         const textWidth = ctx.measureText(currentStatusMessage).width;
         ctx.strokeText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
         ctx.fillText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
@@ -200,10 +200,10 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
             isOKDetected = true;
             maxConfidence = Math.max(maxConfidence, gestureResult.confidence);
 
-            ctx.font = "bold 48px Arial";
+            ctx.font = "bold 24px Arial";
             ctx.fillStyle = "#00FF00";
             ctx.strokeStyle = "#000000";
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2;
             const text = "OK 👌";
             const textWidth = ctx.measureText(text).width;
             ctx.strokeText(text, (canvas.width - textWidth) / 2, 80);
@@ -240,8 +240,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
       if (currentStatusMessage) {
         ctx.fillStyle = "#FFFFFF";
         ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 3;
-        ctx.font = "bold 32px Arial";
+        ctx.lineWidth = 2;
+        ctx.font = "bold 16px Arial";
         const textWidth = ctx.measureText(currentStatusMessage).width;
         ctx.strokeText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
         ctx.fillText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);

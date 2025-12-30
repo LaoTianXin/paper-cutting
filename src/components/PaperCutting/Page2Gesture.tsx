@@ -1,69 +1,108 @@
 import React from "react";
-import PageContainer from "./PageContainer";
 import CameraWithFrame from "./CameraWithFrame";
 import { Page2Images } from "../../constants/images";
 import type { PageProps } from "../../types/paperCutting";
 
 /**
  * Page 2: Gesture Comparison Stage
- * Displays when person is detected but gesture is not yet recognized
- * Shows camera feed with gesture target icon
+ * Flat hierarchy: Background → Camera → Frame → UI
  */
 const Page2Gesture: React.FC<PageProps & { sourceRef: React.RefObject<HTMLCanvasElement | null> }> = ({ detectionState, sourceRef }) => {
   const confidence = detectionState?.gestureConfidence ?? 0;
 
   return (
-    <PageContainer backgroundImage={Page2Images.background}>
-      {/* Camera with frame overlay */}
-      <CameraWithFrame 
-        sourceRef={sourceRef}
-        frameImage={Page2Images.paperCuttingFrame}
-      />
-      {/* Logo at the top */}
-      <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-20">
+    <>
+      {/* 1. Background layer - full screen */}
+      <div className="fixed inset-0" style={{ zIndex: 0 }}>
         <img
-          src={Page2Images.logo}
-          alt="Logo"
-          className="h-16 w-auto"
+          src={Page2Images.background}
+          alt="Background"
+          className="w-full h-full object-cover"
         />
       </div>
 
-      {/* Main content area */}
-      <div className="flex flex-col items-center justify-end flex-1 z-10 pb-32">
-        {/* Gesture icon */}
-        <div className="mb-4">
+      {/* 2 & 3. Camera and Frame layers */}
+      <CameraWithFrame 
+        sourceRef={sourceRef} 
+        frameImage={Page2Images.paperCuttingFrame} 
+      />
+
+      {/* 4. UI layer - full screen, topmost */}
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 20 }}>
+        {/* Logo at the top */}
+        <div className="absolute top-[12rem] left-1/2 transform -translate-x-1/2 pointer-events-auto">
           <img
-            src={Page2Images.gestureIcon}
-            alt="Gesture Icon"
-            className="w-24 h-auto opacity-90"
+            src={Page2Images.logo}
+            alt="Logo"
+            className="animate-fade-in"
+            style={{ height: '150px', width: 'auto', maxWidth: 'none' }}
           />
         </div>
 
-        {/* Instructions */}
-        <div className="font-dabiaosong text-white text-2xl font-bold mb-2 drop-shadow-lg">
-          请比出手势
-        </div>
+        {/* Main content area */}
+        <div className="relative h-full pointer-events-none">
+          {/* Fixed position text */}
+          <div 
+            className="absolute font-dabiaosong text-[#B80509] drop-shadow-lg text-center whitespace-nowrap"
+            style={{ 
+              fontSize: '70px',
+              lineHeight: '1.2',
+              bottom: '880px', // Fixed position from bottom
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }}
+          >
+            想好造型后，摆出图中手势
+            <br />
+            准备开始吧
+          </div>
 
-        {/* Confidence indicator */}
-        {confidence > 0 && (
-          <div className="w-48 bg-white bg-opacity-30 rounded-full h-3 overflow-hidden backdrop-blur-sm">
-            <div
-              className="bg-gradient-to-r from-green-400 to-green-600 h-full transition-all duration-300 rounded-full"
-              style={{ width: `${confidence * 100}%` }}
+          {/* Adjustable position image */}
+          <div 
+            className="absolute"
+            style={{
+              bottom: '520px', // Adjustable position from bottom
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }}
+          >
+            <img
+              src={Page2Images.gestureIcon}
+              alt="Gesture Icon"
+              className="w-[304px] h-auto"
             />
           </div>
-        )}
-      </div>
 
-      {/* Bottom frame */}
-      <div className="absolute bottom-0 left-0 right-0 z-10">
-        <img
-          src={Page2Images.bottomFrame}
-          alt="Bottom Frame"
-          className="w-full h-auto"
-        />
+          {/* Confidence indicator */}
+          {confidence > 0 && (
+            <div 
+              className="absolute bg-white bg-opacity-30 rounded-full overflow-hidden backdrop-blur-sm"
+              style={{ 
+                width: '300px',
+                height: '20px',
+                bottom: '400px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+              }}
+            >
+              <div
+                className="bg-gradient-to-r from-green-400 to-green-600 h-full transition-all duration-300 rounded-full"
+                style={{ width: `${confidence * 100}%` }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Bottom frame */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <img
+            src={Page2Images.bottomFrame}
+            alt="Bottom Frame"
+            className="w-full h-auto"
+          />
+        </div>
       </div>
-    </PageContainer>
+    </>
   );
 };
 

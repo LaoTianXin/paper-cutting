@@ -3,6 +3,7 @@ import { PageStage } from "./types/paperCutting";
 import type { DetectionState } from "./types/paperCutting";
 import { CaptureState } from "./types/capture";
 import { useMediaPipe } from "./hooks/useMediaPipe";
+import { useScreenAdaptation } from "./hooks/useScreenAdaptation";
 
 // Import page components
 import Page1Scan from "./components/PaperCutting/Page1Scan";
@@ -15,8 +16,11 @@ import Page5Display from "./components/PaperCutting/Page5Display";
  * PaperCuttingApp - Main orchestrator for the Paper-Cutting UI
  * Manages page transitions based on pose detection states
  * Integrates with existing MediaPipe pose detection system
+ * Uses 9:20 aspect ratio screen adaptation (1440x3200)
  */
 const PaperCuttingApp: React.FC = () => {
+  // Apply 9:20 aspect ratio screen adaptation
+  useScreenAdaptation(1440, 3200);
   const [currentStage, setCurrentStage] = useState<PageStage>(PageStage.SCAN_START);
   const [capturedImage, setCapturedImage] = useState<string>("");
   const [detectionState, setDetectionState] = useState<DetectionState>({
@@ -128,7 +132,7 @@ const PaperCuttingApp: React.FC = () => {
         return <Page3Countdown detectionState={detectionState} sourceRef={canvasRef} />;
 
       case PageStage.PHOTO_CAPTURE:
-        return <Page4Capture />;
+        return <Page4Capture sourceRef={canvasRef} />;
 
       case PageStage.IMAGE_DISPLAY:
         return (
@@ -166,29 +170,23 @@ const PaperCuttingApp: React.FC = () => {
 
 
 
-      {/* Page content layer - includes camera with frame via component */}
-      {!isLoading && !error && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 20, pointerEvents: 'none' }}>
-          <div style={{ pointerEvents: 'auto' }}>
-            {renderCurrentPage()}
-          </div>
-        </div>
-      )}
+      {/* Page content - rendered directly without wrapper */}
+      {!isLoading && !error && renderCurrentPage()}
 
       {/* Loading screen - semi-transparent to see camera behind it */}
       {isLoading && (
         <div className="fixed inset-0 flex items-center justify-center bg-white bg-opacity-70 backdrop-blur-sm" style={{ zIndex: 10 }}>
-          <div className="text-center max-w-md px-6 bg-white p-8 rounded-2xl shadow-2xl">
-            <div className="text-4xl font-dabiaosong text-red-600 mb-4 animate-pulse">
+          <div className="text-center bg-white rounded-2xl shadow-2xl" style={{ maxWidth: '800px', padding: '60px' }}>
+            <div className="font-dabiaosong text-red-600 animate-pulse" style={{ fontSize: '72px', marginBottom: '30px' }}>
               正在加载...
             </div>
-            <div className="text-lg text-gray-600 mb-6">
+            <div className="text-gray-600" style={{ fontSize: '36px', marginBottom: '40px' }}>
               初始化摄像头和检测系统
             </div>
-            <div className="bg-white bg-opacity-50 rounded-lg p-4 text-sm text-gray-600">
-              <p className="mb-2">⏳ 正在启动摄像头</p>
-              <p className="mb-2">⏳ 加载 MediaPipe 模型</p>
-              <p className="text-xs mt-4 text-gray-500">
+            <div className="bg-white bg-opacity-50 rounded-lg text-gray-600" style={{ padding: '30px', fontSize: '28px' }}>
+              <p style={{ marginBottom: '15px' }}>⏳ 正在启动摄像头</p>
+              <p style={{ marginBottom: '15px' }}>⏳ 加载 MediaPipe 模型</p>
+              <p className="text-gray-500" style={{ fontSize: '20px', marginTop: '30px' }}>
                 如果长时间停留在此页面，请检查：
                 <br />1. 是否允许摄像头权限
                 <br />2. 浏览器控制台是否有错误信息
@@ -201,16 +199,17 @@ const PaperCuttingApp: React.FC = () => {
       {/* Error screen - highest priority */}
       {error && (
         <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50" style={{ zIndex: 10 }}>
-          <div className="text-center bg-white p-8 rounded-lg shadow-xl">
-            <div className="text-3xl font-dabiaosong text-red-600 mb-4">
+          <div className="text-center bg-white rounded-lg shadow-xl" style={{ padding: '60px' }}>
+            <div className="font-dabiaosong text-red-600" style={{ fontSize: '64px', marginBottom: '30px' }}>
               ❌ 错误
             </div>
-            <div className="text-lg text-gray-700 mb-6">
+            <div className="text-gray-700" style={{ fontSize: '32px', marginBottom: '40px' }}>
               {error}
             </div>
             <button
               onClick={handleRestart}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+              className="bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+              style={{ padding: '20px 40px', fontSize: '28px' }}
             >
               重试
             </button>

@@ -8,46 +8,57 @@ interface CameraWithFrameProps {
 
 /**
  * CameraWithFrame - Combines camera feed with paper-cutting frame overlay
- * Maintains 9:16 aspect ratio and proper layering
+ * Frame image has transparent center where camera shows through
  */
 const CameraWithFrame: React.FC<CameraWithFrameProps> = ({
   sourceRef,
   frameImage,
 }) => {
   return (
-    // 9:16 aspect ratio container - centered on screen
-    <div 
-      className="fixed inset-0 flex items-center justify-center pointer-events-none"
-      style={{ zIndex: 15 }}
-    >
+    <>
+      {/* Container for Camera and Frame - Centered */}
       <div 
-        className="relative"
+        className="fixed"
         style={{
-          width: '56.25vh', // 9/16 = 0.5625
-          maxWidth: '90%',
-          height: '100vh',
-          maxHeight: '100%',
+          top: '39%',
+          left: '50%',
+          width: '1008px', // 70% of 1440px (design width)
+          transform: 'translate(-50%, -50%)',
+          zIndex: 10,
         }}
       >
-        {/* Camera feed - bottom layer */}
-        <div className="absolute inset-0">
+        <div 
+          className="relative"
+          style={{
+            width: '100%',
+            aspectRatio: '10 / 16',
+          }}
+        >
+          {/* Camera layer fills container */}
           <CameraFeed 
             sourceRef={sourceRef}
-            className=""
-            style={{}}
+            style={{
+              position: 'absolute',
+              inset: 0,
+            }}
           />
-        </div>
 
-        {/* Frame overlay - top layer */}
-        <div className="absolute inset-0 pointer-events-none">
+          {/* Frame overlay with transparent center - camera shows through */}
           <img
             src={frameImage}
             alt="Paper Cutting Frame"
-            className="w-full h-full object-contain"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              pointerEvents: 'none',
+            }}
           />
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
