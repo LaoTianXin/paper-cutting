@@ -160,7 +160,7 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     // 始终使用 video 元素作为绘制源，保持一致性，避免切换时闪烁
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // 绘制 pose landmarks 和全身框（在非手势检测状态）
+    // 绘制 pose landmarks 和全身框（在非手势检测状态，且人体在裁剪区域内）
     if (poseResults && poseResults.poseLandmarks && (
       currentState === CaptureState.IDLE ||
       currentState === CaptureState.DETECTING_BODY ||
@@ -168,8 +168,10 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
       currentState === CaptureState.COUNTDOWN ||
       currentState === CaptureState.COMPLETED
     )) {
+      // 只有当人体在 10:16 裁剪区域内时才绘制
+      const bodyInCropArea = isBodyInCropArea(poseResults.poseLandmarks, 640, 480);
       const rect = calculateBodyRect(poseResults.poseLandmarks, canvas.width, canvas.height);
-      if (rect) {
+      if (rect && bodyInCropArea) {
         if (
           currentState === CaptureState.IDLE ||
           currentState === CaptureState.DETECTING_BODY ||
@@ -202,10 +204,14 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
       ctx.strokeRect(lastBodyRectRef.current.x, lastBodyRectRef.current.y, lastBodyRectRef.current.width, lastBodyRectRef.current.height);
     }
 
-    // 绘制手部 landmarks 和 OK 手势（在手势检测状态）
+    // 绘制手部 landmarks 和 OK 手势（在手势检测状态，且手在裁剪区域内）
     if (handsResults && handsResults.multiHandLandmarks && handsResults.multiHandLandmarks.length > 0 &&
         (currentState === CaptureState.DETECTING_GESTURE || currentState === CaptureState.GESTURE_DETECTED)) {
       for (const landmarks of handsResults.multiHandLandmarks) {
+        // 只绘制在 10:16 裁剪区域内的手势
+        if (!isHandInCropArea(landmarks, 640, 480)) {
+          continue;
+        }
         drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 3 });
         drawLandmarks(ctx, landmarks, { color: "#FF0000", lineWidth: 1, radius: 4 });
 
