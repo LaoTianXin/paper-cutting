@@ -123,6 +123,9 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
   const handsRef = React.useRef<Hands | null>(null);
   const cameraRef = React.useRef<Camera | null>(null);
   
+  // 保存实际视频分辨率，避免硬编码
+  const videoDimensionsRef = React.useRef<{ width: number; height: number }>({ width: 640, height: 480 });
+  
   // 保存最新的结果用于绘制
   const latestPoseResultsRef = React.useRef<PoseResults | null>(null);
   const latestHandsResultsRef = React.useRef<Results | null>(null);
@@ -169,7 +172,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
       currentState === CaptureState.COMPLETED
     )) {
       // 只有当人体在 10:16 裁剪区域内时才绘制
-      const bodyInCropArea = isBodyInCropArea(poseResults.poseLandmarks, 640, 480);
+      const { width: videoW, height: videoH } = videoDimensionsRef.current;
+      const bodyInCropArea = isBodyInCropArea(poseResults.poseLandmarks, videoW, videoH);
       const rect = calculateBodyRect(poseResults.poseLandmarks, canvas.width, canvas.height);
       if (rect && bodyInCropArea) {
         if (
@@ -209,7 +213,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         (currentState === CaptureState.DETECTING_GESTURE || currentState === CaptureState.GESTURE_DETECTED)) {
       for (const landmarks of handsResults.multiHandLandmarks) {
         // 只绘制在 10:16 裁剪区域内的手势
-        if (!isHandInCropArea(landmarks, 640, 480)) {
+        const { width: videoW, height: videoH } = videoDimensionsRef.current;
+        if (!isHandInCropArea(landmarks, videoW, videoH)) {
           continue;
         }
         drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 3 });
@@ -276,7 +281,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     // 处理全身检测逻辑
     if (results.poseLandmarks) {
       // 检查人体是否在 10:16 裁剪区域内
-      const isInCropArea = isBodyInCropArea(results.poseLandmarks, 640, 480);
+      const { width: videoW, height: videoH } = videoDimensionsRef.current;
+      const isInCropArea = isBodyInCropArea(results.poseLandmarks, videoW, videoH);
       const rect = calculateBodyRect(results.poseLandmarks, canvas.width, canvas.height);
       
       if (rect && isInCropArea) {
@@ -354,7 +360,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         for (const landmarks of results.multiHandLandmarks) {
           // 先检查手势是否在裁剪区域内
-          if (!isHandInCropArea(landmarks, 640, 480)) {
+          const { width: videoW, height: videoH } = videoDimensionsRef.current;
+          if (!isHandInCropArea(landmarks, videoW, videoH)) {
             continue;
           }
           const gestureResult = recognizeOKGesture(landmarks);
@@ -421,8 +428,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
             const sourceWidth = video.videoWidth || 640;
             const sourceHeight = video.videoHeight || 480;
             
-            // 计算 9:16 裁剪区域（与 CameraFeed 中的逻辑一致）
-            const targetAspect = 9 / 16;
+            // 计算 10:16 裁剪区域（与显示区域保持一致）
+            const targetAspect = TARGET_ASPECT_RATIO; // 10 / 16
             const sourceAspect = sourceWidth / sourceHeight;
             
             let cropWidth, cropHeight, cropX, cropY;
@@ -456,7 +463,7 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
               // 转换为 data URL
               const frozenFrameUrl = tempCanvas.toDataURL('image/png');
               frozenFrameRef.current = frozenFrameUrl;
-              console.log('✅ Frozen frame captured at countdown end (clean, 9:16 cropped)');
+              console.log('✅ Frozen frame captured at countdown end (clean, 10:16 cropped)');
             }
           } catch (err) {
             console.error('❌ Failed to capture frozen frame:', err);
@@ -603,6 +610,14 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         await camera.start();
         console.log('✅ 摄像头启动成功！');
         
+        // 更新实际视频分辨率
+        if (videoRef.current) {
+          const actualWidth = videoRef.current.videoWidth || 640;
+          const actualHeight = videoRef.current.videoHeight || 480;
+          videoDimensionsRef.current = { width: actualWidth, height: actualHeight };
+          console.log(`实际视频分辨率: ${actualWidth}x${actualHeight}`);
+        }
+        
         cameraRef.current = camera;
         
         // 预热 hands 模型，避免首次使用时卡顿
@@ -642,7 +657,76 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
   }, [videoReady, onHandsResults, onPoseResults]);
 
   
-  const handleReset = () => {
+  // 停止摄像头（进入 Page5 时调用，避免多摄像头冲突）
+  const stopCamera = React.useCallback(() => {
+    if (cameraRef.current) {
+      console.log('正在停止主摄像头...');
+      cameraRef.current.stop();
+      cameraRef.current = null;
+      console.log('✅ 主摄像头已停止');
+    }
+  }, []);
+
+  // 重新启动摄像头（从 Page5 返回时调用）
+  const restartCamera = React.useCallback(async () => {
+    if (!videoRef.current) {
+      console.log('无法重启摄像头: video 元素不存在');
+      return;
+    }
+    
+    if (cameraRef.current) {
+      console.log('摄像头已在运行');
+      return;
+    }
+
+    try {
+      console.log('正在重新启动摄像头...');
+      const camera = new Camera(videoRef.current, {
+        onFrame: async () => {
+          if (!videoRef.current) return;
+          const currentState = stateRef.current;
+          
+          try {
+            if (
+              currentState === CaptureState.DETECTING_GESTURE ||
+              currentState === CaptureState.GESTURE_DETECTED
+            ) {
+              if (poseRef.current) {
+                poseRef.current.send({ image: videoRef.current }).catch(() => {});
+              }
+              if (handsRef.current) {
+                await handsRef.current.send({ image: videoRef.current });
+              }
+            } else {
+              if (poseRef.current) {
+                await poseRef.current.send({ image: videoRef.current });
+              }
+            }
+          } catch (err) {
+            // 忽略错误
+          }
+        },
+        width: 640,
+        height: 480,
+      });
+
+      await camera.start();
+      cameraRef.current = camera;
+      
+      // 更新实际视频分辨率
+      if (videoRef.current) {
+        const actualWidth = videoRef.current.videoWidth || 640;
+        const actualHeight = videoRef.current.videoHeight || 480;
+        videoDimensionsRef.current = { width: actualWidth, height: actualHeight };
+      }
+      
+      console.log('✅ 摄像头重新启动成功');
+    } catch (err) {
+      console.error('重启摄像头失败:', err);
+    }
+  }, []);
+
+  const handleReset = React.useCallback(() => {
     setState(CaptureState.IDLE);
     setStatusMessage("");
     setCountdown(5);
@@ -654,7 +738,10 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     lastPoseLandmarksRef.current = null;
     frameCountRef.current = 0;
     frozenFrameRef.current = null;
-  };
+    
+    // 重新启动摄像头（如果已停止）
+    restartCamera();
+  }, [restartCamera]);
 
   return {
     videoRef: videoCallbackRef,
@@ -665,6 +752,7 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     statusMessage,
     countdown,
     handleReset,
+    stopCamera,
     frozenFrame: frozenFrameRef.current,
   };
 }

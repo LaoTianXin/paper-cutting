@@ -41,7 +41,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
       // Fallback: calculate from window width
       const pageWidth = window.innerWidth;
       const canvasWidth = Math.floor(pageWidth * 0.6);
-      const canvasHeight = Math.floor(canvasWidth / 9 * 16); // 10:16 aspect ratio
+      const canvasHeight = Math.floor(canvasWidth / 10 * 16); // 10:16 aspect ratio
 
       setCanvasDimensions({ width: canvasWidth, height: canvasHeight });
       console.log('CameraFeed: canvas size from window', canvasWidth, 'x', canvasHeight);

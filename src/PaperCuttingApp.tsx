@@ -60,6 +60,7 @@ const PaperCuttingApp: React.FC = () => {
     error,
     countdown: mediaPipeCountdown,
     handleReset,
+    stopCamera,
     frozenFrame,
   } = useMediaPipe({ onCapture: handleCapture });
 
@@ -119,9 +120,11 @@ const PaperCuttingApp: React.FC = () => {
 
       case CaptureState.COMPLETED:
         setCurrentStage(PageStage.IMAGE_DISPLAY);
+        // 停止主摄像头，避免与 Page5 的摄像头冲突
+        stopCamera();
         break;
     }
-  }, [mediaPipeState, mediaPipeCountdown]);
+  }, [mediaPipeState, mediaPipeCountdown, stopCamera]);
 
   // Handle restart
   const handleRestart = useCallback(() => {

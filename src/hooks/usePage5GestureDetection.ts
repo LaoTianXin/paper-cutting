@@ -88,6 +88,8 @@ export function usePage5GestureDetection({
   const gestureLastLostTimeRef = useRef<number | null>(null); // 300ms grace period like useMediaPipe
   const confirmedRef = useRef(false);
   const progressIntervalRef = useRef<number | null>(null);
+  // 保存实际视频分辨率，避免硬编码
+  const videoDimensionsRef = useRef<{ width: number; height: number }>({ width: 640, height: 480 });
 
   // Reset state
   const resetState = useCallback(() => {
@@ -110,7 +112,8 @@ export function usePage5GestureDetection({
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       for (const landmarks of results.multiHandLandmarks) {
         // 只检测在 10:16 裁剪区域内的手势
-        if (!isHandInCropArea(landmarks, 640, 480)) {
+        const { width: videoW, height: videoH } = videoDimensionsRef.current;
+        if (!isHandInCropArea(landmarks, videoW, videoH)) {
           continue;
         }
         const gestureResult = recognizeOKGesture(landmarks);
@@ -242,6 +245,15 @@ export function usePage5GestureDetection({
 
         await camera.start();
         cameraRef.current = camera;
+        
+        // 更新实际视频分辨率
+        if (videoRef.current) {
+          const actualWidth = videoRef.current.videoWidth || 640;
+          const actualHeight = videoRef.current.videoHeight || 480;
+          videoDimensionsRef.current = { width: actualWidth, height: actualHeight };
+          console.log(`Page5: 实际视频分辨率: ${actualWidth}x${actualHeight}`);
+        }
+        
         setIsDetecting(true);
         console.log('Page5: Gesture detection started');
       } catch (err) {

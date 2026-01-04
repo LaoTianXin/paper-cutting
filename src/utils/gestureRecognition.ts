@@ -7,7 +7,8 @@ export function calculateDistance(
 ): number {
   const dx = point1.x - point2.x;
   const dy = point1.y - point2.y;
-  const dz = point1.z - point2.z;
+  // z 坐标可能为 undefined，使用 0 作为默认值
+  const dz = (point1.z ?? 0) - (point2.z ?? 0);
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
