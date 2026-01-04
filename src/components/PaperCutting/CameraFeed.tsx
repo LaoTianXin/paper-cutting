@@ -42,7 +42,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
       const pageWidth = window.innerWidth;
       const canvasWidth = Math.floor(pageWidth * 0.6);
       const canvasHeight = Math.floor(canvasWidth / 9 * 16); // 10:16 aspect ratio
-      
+
       setCanvasDimensions({ width: canvasWidth, height: canvasHeight });
       console.log('CameraFeed: canvas size from window', canvasWidth, 'x', canvasHeight);
     };
@@ -68,7 +68,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
         if (ctx) {
           const displayWidth = canvasDimensions.width;
           const displayHeight = canvasDimensions.height;
-          
+
           displayCanvas.width = displayWidth;
           displayCanvas.height = displayHeight;
 
@@ -91,7 +91,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
           img.src = frozenFrameUrl;
         }
       }
-      
+
       // No cleanup needed for frozen frame
       return () => {
         console.log('CameraFeed: frozen frame mode stopped');
@@ -102,18 +102,18 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
     const draw = () => {
       const displayCanvas = displayCanvasRef.current;
       const sourceCanvas = sourceRef.current;
-      
+
       if (displayCanvas && sourceCanvas && canvasDimensions.width > 0) {
         const ctx = displayCanvas.getContext('2d');
         if (ctx) {
-          const targetAspect = 9 / 16; // 9:16 aspect ratio
+          const targetAspect = 10 / 16; // 10:16 aspect ratio
           const sourceWidth = sourceCanvas.width;
           const sourceHeight = sourceCanvas.height;
           const sourceAspect = sourceWidth / sourceHeight;
 
           // Calculate crop dimensions for 9:16 aspect ratio
           let cropWidth, cropHeight, cropX, cropY;
-          
+
           if (sourceAspect > targetAspect) {
             // Source is wider, crop the width
             cropHeight = sourceHeight;
@@ -131,7 +131,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
           // Set display canvas to calculated responsive dimensions
           const displayWidth = canvasDimensions.width;
           const displayHeight = canvasDimensions.height;
-          
+
           if (!sourceInitialized || displayCanvas.width !== displayWidth) {
             displayCanvas.width = displayWidth;
             displayCanvas.height = displayHeight;

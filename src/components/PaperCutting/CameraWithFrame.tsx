@@ -19,7 +19,7 @@ const CameraWithFrame: React.FC<CameraWithFrameProps> = ({
   return (
     <>
       {/* Container for Camera and Frame - Centered */}
-      <div 
+      <div
         className="fixed"
         style={{
           top: '39%',
@@ -29,7 +29,7 @@ const CameraWithFrame: React.FC<CameraWithFrameProps> = ({
           zIndex: 10,
         }}
       >
-        <div 
+        <div
           className="relative"
           style={{
             width: '100%',
@@ -37,7 +37,7 @@ const CameraWithFrame: React.FC<CameraWithFrameProps> = ({
           }}
         >
           {/* Camera layer fills container */}
-          <CameraFeed 
+          <CameraFeed
             sourceRef={sourceRef}
             frozenFrameUrl={frozenFrameUrl}
             style={{

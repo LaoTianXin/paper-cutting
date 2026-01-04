@@ -7,6 +7,92 @@ import { initializePose, calculateBodyRect, type BodyRect } from "../poseDetecti
 import { CaptureState } from "../types/capture";
 import { recognizeOKGesture } from "../utils/gestureRecognition";
 
+// 目标显示比例 10:16（与 CameraFeed 保持一致）
+const TARGET_ASPECT_RATIO = 10 / 16;
+
+/**
+ * 计算 10:16 裁剪区域的边界（归一化坐标 0-1）
+ * 相机捕获的是 4:3 (640x480)，显示的是中间的 10:16 区域
+ */
+function getCropBounds(sourceWidth: number, sourceHeight: number) {
+  const sourceAspect = sourceWidth / sourceHeight;
+  
+  let cropX = 0, cropY = 0, cropWidth = 1, cropHeight = 1;
+  
+  if (sourceAspect > TARGET_ASPECT_RATIO) {
+    // Source is wider (4:3 > 10:16), crop the width
+    const visibleWidthRatio = (sourceHeight * TARGET_ASPECT_RATIO) / sourceWidth;
+    cropWidth = visibleWidthRatio;
+    cropX = (1 - visibleWidthRatio) / 2;
+  } else {
+    // Source is taller, crop the height
+    const visibleHeightRatio = (sourceWidth / TARGET_ASPECT_RATIO) / sourceHeight;
+    cropHeight = visibleHeightRatio;
+    cropY = (1 - visibleHeightRatio) / 2;
+  }
+  
+  return { cropX, cropY, cropWidth, cropHeight };
+}
+
+/**
+ * 检查归一化坐标点是否在裁剪区域内
+ */
+function isPointInCropArea(x: number, y: number, bounds: ReturnType<typeof getCropBounds>): boolean {
+  return x >= bounds.cropX && 
+         x <= bounds.cropX + bounds.cropWidth &&
+         y >= bounds.cropY && 
+         y <= bounds.cropY + bounds.cropHeight;
+}
+
+/**
+ * 检查手势关键点是否大部分在裁剪区域内
+ */
+function isHandInCropArea(
+  landmarks: { x: number; y: number }[],
+  sourceWidth: number,
+  sourceHeight: number
+): boolean {
+  const bounds = getCropBounds(sourceWidth, sourceHeight);
+  // 检查手掌中心点（关键点0是手腕）
+  const wrist = landmarks[0];
+  const middleFinger = landmarks[9]; // 中指根部
+  const centerX = (wrist.x + middleFinger.x) / 2;
+  const centerY = (wrist.y + middleFinger.y) / 2;
+  
+  return isPointInCropArea(centerX, centerY, bounds);
+}
+
+/**
+ * 检查人体是否在裁剪区域内（基于 pose landmarks）
+ */
+function isBodyInCropArea(
+  landmarks: { x: number; y: number; visibility?: number }[],
+  sourceWidth: number,
+  sourceHeight: number
+): boolean {
+  const bounds = getCropBounds(sourceWidth, sourceHeight);
+  
+  // 检查关键身体部位是否在裁剪区域内
+  // 使用躯干中心（左右肩膀和左右髋部的中心）
+  const leftShoulder = landmarks[11];
+  const rightShoulder = landmarks[12];
+  const leftHip = landmarks[23];
+  const rightHip = landmarks[24];
+  
+  // 检查可见性
+  const visibleParts = [leftShoulder, rightShoulder, leftHip, rightHip].filter(
+    lm => (lm?.visibility ?? 0) > 0.5
+  );
+  
+  if (visibleParts.length < 2) return false;
+  
+  // 计算躯干中心
+  const centerX = visibleParts.reduce((sum, lm) => sum + lm.x, 0) / visibleParts.length;
+  const centerY = visibleParts.reduce((sum, lm) => sum + lm.y, 0) / visibleParts.length;
+  
+  return isPointInCropArea(centerX, centerY, bounds);
+}
+
 interface UseMediaPipeProps {
   onCapture?: (canvas: HTMLCanvasElement) => void;
 }
@@ -183,8 +269,11 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
 
     // 处理全身检测逻辑
     if (results.poseLandmarks) {
+      // 检查人体是否在 10:16 裁剪区域内
+      const isInCropArea = isBodyInCropArea(results.poseLandmarks, 640, 480);
       const rect = calculateBodyRect(results.poseLandmarks, canvas.width, canvas.height);
-      if (rect) {
+      
+      if (rect && isInCropArea) {
         lastBodyDetectedTime.current = currentTime;
         lastBodyRectRef.current = rect;
         lastPoseLandmarksRef.current = results.poseLandmarks;
@@ -201,6 +290,9 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
             }
           }
         }
+      } else if (!isInCropArea && currentState === CaptureState.DETECTING_BODY) {
+        // 人体不在裁剪区域内，提示用户
+        setStatusMessage("请站到画面中央");
       }
     } else {
       // 全身丢失处理
@@ -251,10 +343,14 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         return;
       }
 
-      // 检测 OK 手势
+      // 检测 OK 手势（只检测在 10:16 裁剪区域内的手势）
       let isOKDetected = false;
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         for (const landmarks of results.multiHandLandmarks) {
+          // 先检查手势是否在裁剪区域内
+          if (!isHandInCropArea(landmarks, 640, 480)) {
+            continue;
+          }
           const gestureResult = recognizeOKGesture(landmarks);
           if (gestureResult.isOK) {
             isOKDetected = true;

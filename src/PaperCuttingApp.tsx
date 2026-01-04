@@ -43,7 +43,7 @@ const PaperCuttingApp: React.FC = () => {
         capturedImageRef.current.width = resultCanvas.width;
         capturedImageRef.current.height = resultCanvas.height;
         targetCtx.drawImage(resultCanvas, 0, 0);
-        
+
         // Convert to data URL for display
         const imageUrl = capturedImageRef.current.toDataURL("image/png");
         setCapturedImage(imageUrl);
@@ -83,8 +83,8 @@ const PaperCuttingApp: React.FC = () => {
       case CaptureState.BODY_DETECTED:
       case CaptureState.DETECTING_GESTURE:
         setCurrentStage(PageStage.GESTURE_COMPARISON);
-        setDetectionState(prev => ({ 
-          ...prev, 
+        setDetectionState(prev => ({
+          ...prev,
           personDetected: true,
           gestureDetected: false,
           gestureConfidence: 0,
@@ -93,8 +93,8 @@ const PaperCuttingApp: React.FC = () => {
 
       case CaptureState.GESTURE_DETECTED:
         setCurrentStage(PageStage.GESTURE_COMPARISON);
-        setDetectionState(prev => ({ 
-          ...prev, 
+        setDetectionState(prev => ({
+          ...prev,
           personDetected: true,
           gestureDetected: true,
           gestureConfidence: 0.8, // Approximate confidence
@@ -103,8 +103,8 @@ const PaperCuttingApp: React.FC = () => {
 
       case CaptureState.COUNTDOWN:
         setCurrentStage(PageStage.COUNTDOWN);
-        setDetectionState(prev => ({ 
-          ...prev, 
+        setDetectionState(prev => ({
+          ...prev,
           countdownValue: mediaPipeCountdown > 0 ? mediaPipeCountdown : 3,
         }));
         break;
@@ -169,8 +169,8 @@ const PaperCuttingApp: React.FC = () => {
 
       case PageStage.IMAGE_DISPLAY:
         return (
-          <Page5Display 
-            capturedImage={capturedImage} 
+          <Page5Display
+            capturedImage={capturedImage}
             onPrevStage={handleRestart}
           />
         );
@@ -206,41 +206,41 @@ const PaperCuttingApp: React.FC = () => {
         currentStage === PageStage.GESTURE_COMPARISON ||
         currentStage === PageStage.COUNTDOWN
       ) && (
-        <>
-          {/* Background layer - full screen */}
-          <div className="fixed inset-0" style={{ zIndex: 0 }}>
-            <img
-              src={Page1Images.background}
-              alt="Background"
-              className="w-full h-full object-cover"
-            />
-          </div>
+          <>
+            {/* Background layer - full screen */}
+            <div className="fixed inset-0" style={{ zIndex: 0 }}>
+              <img
+                src={Page1Images.background}
+                alt="Background"
+                className="w-full h-full object-cover"
+              />
+            </div>
 
-          {/* Logo at the top */}
-          <div className="fixed top-[4.8rem] left-1/2 transform -translate-x-1/2 pointer-events-auto" style={{ zIndex: 25 }}>
-            <img
-              src={Page1Images.logo}
-              alt="Logo"
-              className="animate-fade-in"
-              style={{ height: '60px', width: 'auto', maxWidth: 'none' }}
-            />
-          </div>
+            {/* Logo at the top */}
+            <div className="fixed top-[4.8rem] left-1/2 transform -translate-x-1/2 pointer-events-auto" style={{ zIndex: 25 }}>
+              <img
+                src={Page1Images.logo}
+                alt="Logo"
+                className="animate-fade-in"
+                style={{ height: '60px', width: 'auto', maxWidth: 'none' }}
+              />
+            </div>
 
-          {/* Bottom frame */}
-          <div className="fixed bottom-0 left-0 right-0" style={{ zIndex: 25 }}>
-            <img
-              src={Page1Images.bottomFrame}
-              alt="Bottom Frame"
-              className="w-full h-auto"
-            />
-          </div>
-        </>
-      )}
+            {/* Bottom frame */}
+            <div className="fixed bottom-0 left-0 right-0" style={{ zIndex: 25 }}>
+              <img
+                src={Page1Images.bottomFrame}
+                alt="Bottom Frame"
+                className="w-full h-auto"
+              />
+            </div>
+          </>
+        )}
 
       {/* Persistent camera component - shown for all stages except IMAGE_DISPLAY */}
       {!isLoading && !error && currentStage !== PageStage.IMAGE_DISPLAY && (
-        <CameraWithFrame 
-          sourceRef={canvasRef} 
+        <CameraWithFrame
+          sourceRef={canvasRef}
           frameImage={getCurrentFrameImage()}
           frozenFrameUrl={currentStage === PageStage.PHOTO_CAPTURE ? frozenFrameUrl : undefined}
         />

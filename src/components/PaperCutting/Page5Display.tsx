@@ -1,20 +1,33 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PageContainer from "./PageContainer";
 import { Page5Images } from "../../constants/images";
 import type { PageProps } from "../../types/paperCutting";
+import { usePage5GestureDetection } from "../../hooks/usePage5GestureDetection";
 
 /**
  * Page 5: Image Display Stage
  * Displays the captured photo with decorative frame
- * Allows user to download or restart
+ * Returns to page1 via OK gesture or 30-second timeout
  */
 const Page5Display: React.FC<PageProps> = ({ capturedImage, onPrevStage }) => {
-  const [selectedDecoration, setSelectedDecoration] = useState(0);
   const [countdown, setCountdown] = useState(30);
 
+  // Handle return to page1
+  const handleReturn = useCallback(() => {
+    if (onPrevStage) onPrevStage();
+  }, [onPrevStage]);
+
+  // OK gesture detection for this page only
+  const { videoRef, progress, isGestureDetected } = usePage5GestureDetection({
+    enabled: true,
+    onOkGestureConfirmed: handleReturn,
+    holdDuration: 3000, // 3 seconds to confirm
+  });
+
+  // 30-second auto-return timer
   useEffect(() => {
     if (countdown <= 0) {
-      if (onPrevStage) onPrevStage();
+      handleReturn();
       return;
     }
 
@@ -23,13 +36,22 @@ const Page5Display: React.FC<PageProps> = ({ capturedImage, onPrevStage }) => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [countdown, onPrevStage]);
+  }, [countdown, handleReturn]);
 
-
-
+  // Calculate circular progress for SVG
+  const circumference = 2 * Math.PI * 45; // radius = 45
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
 
   return (
     <PageContainer>
+      {/* Hidden video element for gesture detection */}
+      <video
+        ref={videoRef}
+        style={{ position: 'absolute', left: -9999, top: -9999, width: 640, height: 480, visibility: 'hidden' }}
+        autoPlay
+        playsInline
+      />
+
       {/* Container with background */}
       <div
         className="w-full h-full relative"
@@ -68,17 +90,55 @@ const Page5Display: React.FC<PageProps> = ({ capturedImage, onPrevStage }) => {
 
         {/* Bottom Interaction Area */}
         <div className="absolute bottom-[216px] left-1/2 -translate-x-1/2 flex flex-col items-center w-full">
-          {/* Countdown UI */}
-          <div className="mb-[-36px] flex items-center justify-center">
-            <div className="rounded-full font-bold text-[#B80509]">
-              <span className="text-[96px]">{countdown}</span>
-              <span className="text-[24px]">秒</span>
+          {/* Countdown UI with Progress Ring */}
+          <div className="mb-[-8px] flex items-center justify-center relative">
+            {/* Progress Ring - visible when gesture is detected */}
+            {isGestureDetected && (
+              <svg
+                className="absolute"
+                width="128"
+                height="128"
+                viewBox="0 0 100 100"
+                style={{ transform: 'rotate(-90deg)' }}
+              >
+                {/* Background circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="rgba(184, 5, 9, 0.2)"
+                  strokeWidth="6"
+                />
+                {/* Progress circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="#B80509"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  style={{ transition: 'stroke-dashoffset 0.1s ease-out' }}
+                />
+              </svg>
+            )}
+            <div className="rounded-full font-bold text-[#B80509] z-10">
+              <span className="text-[60px]">{countdown}</span>
+              <span className="text-[18px]">秒</span>
             </div>
           </div>
 
+          {/* Gesture hint text - changes when gesture detected */}
           <div className="relative w-full flex justify-center">
             <div className="absolute top-1/2 -translate-y-[40%] right-[170px] z-10 text-[25px] font-dabiaosong text-[#B80509]">
-              摆出图中手势，再次体验吧
+              {isGestureDetected ? (
+                <span className="animate-pulse">保持手势中... {Math.round(progress)}%</span>
+              ) : (
+                '摆出图中手势，再次体验吧'
+              )}
             </div>
             <img src={Page5Images.decorations[3]} alt="Gesture Guide" className="w-[453px] h-auto" />
           </div>
