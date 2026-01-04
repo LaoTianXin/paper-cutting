@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PageContainer from "./PageContainer";
 import { Page5Images } from "../../constants/images";
 import type { PageProps } from "../../types/paperCutting";
@@ -10,126 +10,93 @@ import type { PageProps } from "../../types/paperCutting";
  */
 const Page5Display: React.FC<PageProps> = ({ capturedImage, onPrevStage }) => {
   const [selectedDecoration, setSelectedDecoration] = useState(0);
+  const [countdown, setCountdown] = useState(30);
 
-  const handleDownload = () => {
-    if (!capturedImage) return;
-
-    const link = document.createElement("a");
-    link.href = capturedImage;
-    link.download = `paper-cutting-photo-${Date.now()}.png`;
-    link.click();
-  };
-
-  const handleRestart = () => {
-    if (onPrevStage) {
-      onPrevStage();
+  useEffect(() => {
+    if (countdown <= 0) {
+      if (onPrevStage) onPrevStage();
+      return;
     }
-  };
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [countdown, onPrevStage]);
+
+
+
 
   return (
     <PageContainer>
-      {/* Decorative background pattern */}
-      <div className="absolute inset-0 bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50" />
+      {/* Container with background */}
+      <div
+        className="w-full h-full relative"
+        style={{ backgroundImage: `url(${Page5Images.decorations[0]})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+      >
+        {/* Background Overlay Layer */}
+        <div
+          className="absolute inset-0 w-full h-[841px] flex justify-center items-center bg-no-repeat bg-center"
+          style={{ backgroundImage: `url(${Page5Images.decorations[4]})`, backgroundSize: 'cover' }}
+        >
+          {/* Main Content Card */}
+          <div
+            className="w-[522px] h-[775px] z-20 pointer-events-none flex flex-col items-center px-[35px] bg-no-repeat bg-center"
+            style={{ backgroundImage: `url(${Page5Images.decorations[2]})`, backgroundSize: 'cover' }}
+          >
+            <div className="mt-[40px] w-[442px]">
+              <img src={Page5Images.maskGroup} alt="title" className="w-full h-auto" />
+            </div>
 
-      {/* Main frame */}
-      <div className="absolute inset-0 pointer-events-none z-10">
-        <img
-          src={Page5Images.frame}
-          alt="Frame"
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* Photo display area */}
-      <div className="relative z-10 flex flex-col items-center justify-center h-full px-3 py-6">
-        {/* Photo frame container */}
-        <div className="relative mb-3 animate-slide-up">
-          {/* Border and ornaments */}
-          <div className="absolute inset-0 pointer-events-none z-20">
-            <img
-              src={Page5Images.border}
-              alt="Border"
-              className="w-full h-full object-contain"
-            />
-          </div>
-
-          {/* Photo with frame */}
-          <div className="relative bg-white p-2 rounded-lg shadow-2xl">
-            <div
-              className="relative bg-gray-200 overflow-hidden rounded"
-              style={{ width: "150px", height: "200px" }}
-            >
+            {/* Middle Image Area */}
+            <div className="bg-gray-400 w-full h-[613px] mt-[12px] flex items-center justify-center relative">
               {capturedImage ? (
                 <img
                   src={capturedImage}
-                  alt="Captured"
-                  className="w-full h-full object-cover"
+                  alt="captured"
+                  className="max-w-full max-h-full object-contain"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  No Image
+                <div className="absolute inset-[6.5%] w-[87%] h-[87%] bg-gray-200 flex items-center justify-center text-gray-500">
+                  暂无图片
                 </div>
               )}
             </div>
-
-            {/* Selected decoration overlay */}
-            {Page5Images.decorations[selectedDecoration] && (
-              <div className="absolute top-1 right-1 w-8 h-8">
-                <img
-                  src={Page5Images.decorations[selectedDecoration]}
-                  alt="Decoration"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Decoration selector */}
-        <div className="flex gap-1.5 mb-3 z-20">
-          {Page5Images.decorations.slice(0, 4).map((decoration, index) => (
-            <button
-              key={index}
-              onClick={() => setSelectedDecoration(index)}
-              className={`w-6 h-6 rounded-lg border-2 transition-all ${
-                selectedDecoration === index
-                  ? "border-red-500 scale-110 shadow-lg"
-                  : "border-gray-300 hover:border-red-300"
-              }`}
-            >
-              <img
-                src={decoration}
-                alt={`Decoration ${index + 1}`}
-                className="w-full h-full object-contain p-1"
-              />
-            </button>
-          ))}
+        {/* Bottom Interaction Area */}
+        <div className="absolute bottom-[216px] left-1/2 -translate-x-1/2 flex flex-col items-center w-full">
+          {/* Countdown UI */}
+          <div className="mb-[-36px] flex items-center justify-center">
+            <div className="rounded-full font-bold text-[#B80509]">
+              <span className="text-[96px]">{countdown}</span>
+              <span className="text-[24px]">秒</span>
+            </div>
+          </div>
+
+          <div className="relative w-full flex justify-center">
+            <div className="absolute top-1/2 -translate-y-[40%] right-[170px] z-10 text-[25px] font-dabiaosong text-[#B80509]">
+              摆出图中手势，再次体验吧
+            </div>
+            <img src={Page5Images.decorations[3]} alt="Gesture Guide" className="w-[453px] h-auto" />
+          </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="flex gap-4 z-20">
-          <button
-            onClick={handleDownload}
-            className="px-4 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white font-dabiaosong text-base font-bold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all"
-          >
-            保存照片
-          </button>
-          <button
-            onClick={handleRestart}
-            className="px-4 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-dabiaosong text-base font-bold rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all"
-          >
-            重新拍摄
-          </button>
+        {/* Global Ornament */}
+        <div className="absolute top-0 left-0 right-0 z-0 pointer-events-none">
+          <img src={Page5Images.ornament} alt="" className="w-full h-auto" />
         </div>
-      </div>
 
-      {/* Bottom frame */}
-      <div className="absolute bottom-0 left-0 right-0 z-10">
-        <img
-          src={Page5Images.bottomFrame}
-          alt="Bottom Frame"
-          className="w-full h-auto"
-        />
+        {/* Global Bottom Frame */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
+          <img
+            src={Page5Images.bottomFrame}
+            alt="Bottom Frame"
+            className="w-full h-auto"
+          />
+        </div>
       </div>
     </PageContainer>
   );

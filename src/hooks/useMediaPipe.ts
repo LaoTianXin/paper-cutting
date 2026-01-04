@@ -371,7 +371,7 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     if (state === CaptureState.CAPTURING) {
       const captureTimer = setTimeout(() => {
         setState(CaptureState.CAPTURE);
-      }, 300000); // 3秒拍照延迟，显示快门效果
+      }, 3000); // 3秒拍照延迟，显示快门效果
       return () => clearTimeout(captureTimer);
     }
   }, [state]);

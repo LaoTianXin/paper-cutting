@@ -1,7 +1,7 @@
 import React from "react";
 
 interface CameraCanvasProps {
-  videoRef: React.RefObject<HTMLVideoElement | null>;
+  videoRef: React.RefObject<HTMLVideoElement | null> | ((node: HTMLVideoElement | null) => void);
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
 }
 

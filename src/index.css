@@ -494,9 +494,7 @@ body {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  body {
-    padding: 10px;
-  }
+
 
   .App {
     padding: 20px;
