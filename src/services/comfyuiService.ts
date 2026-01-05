@@ -17,6 +17,131 @@ export interface GenerateResponse {
   error?: string;
 }
 
+// Response type for share image upload
+export interface UploadShareResponse {
+  success: boolean;
+  /** Data ID returned from server - used to construct retrieval URL */
+  dataId?: string;
+  /** Full URL to retrieve the data */
+  url?: string;
+  error?: string;
+}
+
+/**
+ * Convert Blob to base64 string
+ */
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      // Remove data URL prefix (e.g., "data:image/png;base64,")
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Upload share card data to server
+ * Uses POST /public/v1/uploadData endpoint
+ * @param imageBlob - Blob data of the share card image
+ * @returns Promise with the data ID and retrieval URL
+ */
+export async function uploadShareImage(imageBlob: Blob): Promise<UploadShareResponse> {
+  try {
+    console.log('[Share Service] Starting image upload...');
+    console.log('[Share Service] Upload API URL:', UPLOAD_API_URL);
+    console.log('[Share Service] Blob size:', (imageBlob.size / 1024).toFixed(2), 'KB');
+
+    if (!UPLOAD_API_URL) {
+      console.error('[Share Service] UPLOAD_API_URL is not configured');
+      return {
+        success: false,
+        error: 'Upload API URL not configured',
+      };
+    }
+
+    // Convert blob to base64
+    const base64Image = await blobToBase64(imageBlob);
+    console.log('[Share Service] Base64 length:', base64Image.length);
+
+    // Prepare upload data
+    const uploadData = {
+      imageData: base64Image,
+      imageType: 'image/png',
+      timestamp: Date.now(),
+      appName: 'paper-cutting',
+    };
+
+    // Send as JSON to uploadData endpoint
+    const response = await fetch(`${UPLOAD_API_URL}/public/v1/uploadData`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': '*/*',
+      },
+      body: JSON.stringify(uploadData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      console.error('[Share Service] Upload error:', response.status, errorData);
+      return {
+        success: false,
+        error: errorData.detail || errorData.message || `HTTP ${response.status}`,
+      };
+    }
+
+    const data = await response.json();
+    console.log('[Share Service] Upload result (full):', JSON.stringify(data, null, 2));
+
+    // Extract the data ID from response - try multiple possible field names
+    // The API returns 'xid' as the data identifier
+    let dataId = data.xid || data.id || data.dataId || data._id || data.code || data.key || data.shortId;
+    
+    // If data is wrapped in a data property
+    if (!dataId && data.data) {
+      dataId = data.data.id || data.data.dataId || data.data._id || data.data.code || data.data.key;
+    }
+    
+    // If the response itself is just a string (the ID directly)
+    if (!dataId && typeof data === 'string') {
+      dataId = data;
+    }
+
+    console.log('[Share Service] Extracted dataId:', dataId);
+    console.log('[Share Service] Available keys in response:', Object.keys(data));
+
+    if (dataId) {
+      // Construct the retrieval URL
+      const retrievalUrl = `${UPLOAD_API_URL}/public/v1/uploadData/${dataId}`;
+      console.log('[Share Service] Data ID:', dataId);
+      console.log('[Share Service] Retrieval URL:', retrievalUrl);
+      
+      return {
+        success: true,
+        dataId: dataId,
+        url: retrievalUrl,
+      };
+    }
+
+    console.error('[Share Service] Could not find data ID in response. Response structure:', data);
+    return {
+      success: false,
+      error: `No data ID in response. Keys: ${Object.keys(data).join(', ')}`,
+    };
+  } catch (error) {
+    console.error('[Share Service] Network error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error',
+    };
+  }
+}
+
 /**
  * Process image URL - add prefix if needed
  * @param imageUrl - The URL returned from API

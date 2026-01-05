@@ -198,7 +198,7 @@
   "115:118": {
     "inputs": {
       "upscale_method": "lanczos",
-      "scale_by": 1,
+      "scale_by": 1.5,
       "image": [
         "78",
         0
