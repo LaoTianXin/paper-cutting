@@ -123,8 +123,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
   const handsRef = React.useRef<Hands | null>(null);
   const cameraRef = React.useRef<Camera | null>(null);
   
-  // 保存实际视频分辨率，避免硬编码
-  const videoDimensionsRef = React.useRef<{ width: number; height: number }>({ width: 640, height: 480 });
+  // 保存实际视频分辨率，避免硬编码 (高分辨率 1280x960)
+  const videoDimensionsRef = React.useRef<{ width: number; height: number }>({ width: 1280, height: 960 });
   
   // 保存最新的结果用于绘制
   const latestPoseResultsRef = React.useRef<PoseResults | null>(null);
@@ -181,21 +181,21 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
           currentState === CaptureState.DETECTING_BODY ||
           currentState === CaptureState.BODY_DETECTED
         ) {
-          drawConnectors(ctx, poseResults.poseLandmarks, POSE_CONNECTIONS, { color: "#00FF00", lineWidth: 2 });
-          drawLandmarks(ctx, poseResults.poseLandmarks, { color: "#FF0000", radius: 3 });
+          drawConnectors(ctx, poseResults.poseLandmarks, POSE_CONNECTIONS, { color: "#00FF00", lineWidth: 4 });
+          drawLandmarks(ctx, poseResults.poseLandmarks, { color: "#FF0000", radius: 6 });
           ctx.strokeStyle = "#00FF00";
-          ctx.lineWidth = 4;
+          ctx.lineWidth = 8;
           ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
           ctx.fillStyle = "#00FF00";
-          ctx.font = "bold 12px Arial";
-          ctx.fillText("全身已检测", rect.x, rect.y - 10);
+          ctx.font = "bold 24px Arial";
+          ctx.fillText("全身已检测", rect.x, rect.y - 20);
         } else if (currentState === CaptureState.COUNTDOWN) {
           ctx.strokeStyle = "#00FF00";
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 6;
           ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
         } else if (currentState === CaptureState.COMPLETED) {
           ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 4;
           ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
         }
       }
@@ -204,7 +204,7 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     // 绘制全身框（在手势检测状态，使用缓存的框）
     if ((currentState === CaptureState.DETECTING_GESTURE || currentState === CaptureState.GESTURE_DETECTED) && lastBodyRectRef.current) {
       ctx.strokeStyle = "rgba(0, 255, 0, 0.8)";
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 6;
       ctx.strokeRect(lastBodyRectRef.current.x, lastBodyRectRef.current.y, lastBodyRectRef.current.width, lastBodyRectRef.current.height);
     }
 
@@ -217,19 +217,19 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         if (!isHandInCropArea(landmarks, videoW, videoH)) {
           continue;
         }
-        drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 3 });
-        drawLandmarks(ctx, landmarks, { color: "#FF0000", lineWidth: 1, radius: 4 });
+        drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 6 });
+        drawLandmarks(ctx, landmarks, { color: "#FF0000", lineWidth: 2, radius: 8 });
 
         const gestureResult = recognizeOKGesture(landmarks);
         if (gestureResult.isOK) {
-          ctx.font = "bold 24px Arial";
+          ctx.font = "bold 48px Arial";
           ctx.fillStyle = "#00FF00";
           ctx.strokeStyle = "#000000";
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 4;
           const text = "OK 👌";
           const textWidth = ctx.measureText(text).width;
-          ctx.strokeText(text, (canvas.width - textWidth) / 2, 80);
-          ctx.fillText(text, (canvas.width - textWidth) / 2, 80);
+          ctx.strokeText(text, (canvas.width - textWidth) / 2, 160);
+          ctx.fillText(text, (canvas.width - textWidth) / 2, 160);
         }
       }
     }
@@ -238,8 +238,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     if (currentState === CaptureState.COUNTDOWN) {
       ctx.fillStyle = "#FFD700";
       ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 3;
-      ctx.font = "bold 60px Arial";
+      ctx.lineWidth = 6;
+      ctx.font = "bold 120px Arial";
       const text = countdownRef.current.toString();
       const textWidth = ctx.measureText(text).width;
       ctx.strokeText(text, (canvas.width - textWidth) / 2, canvas.height / 2);
@@ -251,11 +251,11 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     if (currentStatusMessage && currentState !== CaptureState.COUNTDOWN) {
       ctx.fillStyle = "#FFFFFF";
       ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 2;
-      ctx.font = "bold 16px Arial";
+      ctx.lineWidth = 4;
+      ctx.font = "bold 32px Arial";
       const textWidth = ctx.measureText(currentStatusMessage).width;
-      ctx.strokeText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
-      ctx.fillText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 50);
+      ctx.strokeText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 100);
+      ctx.fillText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 100);
     }
 
     pendingDrawRef.current = false;
@@ -475,46 +475,59 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     }
   }, [state, countdown]);
 
-  // Handle capturing state - show shutter effect then take photo
+  // Handle capturing state - immediately take photo (no delay)
   React.useEffect(() => {
     if (state === CaptureState.CAPTURING) {
-      const captureTimer = setTimeout(() => {
-        setState(CaptureState.CAPTURE);
-      }, 3000); // 3秒拍照延迟，显示快门效果
-      return () => clearTimeout(captureTimer);
+      // 直接进入 CAPTURE 状态，不再等待 3 秒
+      setState(CaptureState.CAPTURE);
     }
   }, [state]);
 
-  // Handle photo capture
+  // Handle photo capture - output 10:16 aspect ratio image
   React.useEffect(() => {
     if (state === CaptureState.CAPTURE) {
       const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (video && canvas && lastBodyRectRef.current) {
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = video.videoWidth || 640;
-        tempCanvas.height = video.videoHeight || 480;
-        const tempCtx = tempCanvas.getContext("2d");
-        if (tempCtx) {
-          tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-          const scaleX = tempCanvas.width / canvas.width;
-          const scaleY = tempCanvas.height / canvas.height;
-          const rect = lastBodyRectRef.current;
-          const padding = 20;
-          const x = Math.max(0, (rect.x - padding) * scaleX);
-          const y = Math.max(0, (rect.y - padding) * scaleY);
-          const width = Math.min(tempCanvas.width - x, (rect.width + padding * 2) * scaleX);
-          const height = Math.min(tempCanvas.height - y, (rect.height + padding * 2) * scaleY);
-
-          const resultCanvas = document.createElement("canvas");
-          resultCanvas.width = width * 1.5;
-          resultCanvas.height = height * 1.5;
-          const resultCtx = resultCanvas.getContext("2d");
-          if (resultCtx) {
-            resultCtx.drawImage(tempCanvas, x, y, width, height, 0, 0, resultCanvas.width, resultCanvas.height);
-            onCapture?.(resultCanvas);
-          }
+      if (video) {
+        const sourceWidth = video.videoWidth || 640;
+        const sourceHeight = video.videoHeight || 480;
+        
+        // 计算 10:16 裁剪区域
+        const targetAspect = TARGET_ASPECT_RATIO; // 10 / 16 = 0.625
+        const sourceAspect = sourceWidth / sourceHeight;
+        
+        let cropWidth, cropHeight, cropX, cropY;
+        if (sourceAspect > targetAspect) {
+          // 视频更宽，需要裁剪宽度
+          cropHeight = sourceHeight;
+          cropWidth = sourceHeight * targetAspect;
+          cropX = (sourceWidth - cropWidth) / 2;
+          cropY = 0;
+        } else {
+          // 视频更高，需要裁剪高度
+          cropWidth = sourceWidth;
+          cropHeight = sourceWidth / targetAspect;
+          cropX = 0;
+          cropY = (sourceHeight - cropHeight) / 2;
         }
+        
+        // 创建 10:16 比例的画布
+        const resultCanvas = document.createElement("canvas");
+        resultCanvas.width = cropWidth;
+        resultCanvas.height = cropHeight;
+        
+        const resultCtx = resultCanvas.getContext("2d");
+        if (resultCtx) {
+          // 从视频中裁剪 10:16 区域
+          resultCtx.drawImage(
+            video,
+            cropX, cropY, cropWidth, cropHeight,
+            0, 0, cropWidth, cropHeight
+          );
+          
+          console.log(`截图完成: ${cropWidth}x${cropHeight} (比例 ${(cropWidth/cropHeight).toFixed(3)})`);
+          onCapture?.(resultCanvas);
+        }
+        
         setState(CaptureState.COMPLETED);
         setStatusMessage("✓ 拍照完成！");
       }
@@ -602,8 +615,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
               // 忽略错误，继续下一帧
             }
           },
-          width: 640,
-          height: 480,
+          width: 1280,
+          height: 960,
         });
 
         console.log('正在启动摄像头...');
@@ -612,10 +625,10 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         
         // 更新实际视频分辨率
         if (videoRef.current) {
-          const actualWidth = videoRef.current.videoWidth || 640;
-          const actualHeight = videoRef.current.videoHeight || 480;
+          const actualWidth = videoRef.current.videoWidth || 1280;
+          const actualHeight = videoRef.current.videoHeight || 960;
           videoDimensionsRef.current = { width: actualWidth, height: actualHeight };
-          console.log(`实际视频分辨率: ${actualWidth}x${actualHeight}`);
+          console.log(`实际视频分辨率: ${actualWidth}x${actualHeight} (高分辨率模式)`);
         }
         
         cameraRef.current = camera;
@@ -706,8 +719,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
             // 忽略错误
           }
         },
-        width: 640,
-        height: 480,
+        width: 1280,
+        height: 960,
       });
 
       await camera.start();
@@ -715,8 +728,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
       
       // 更新实际视频分辨率
       if (videoRef.current) {
-        const actualWidth = videoRef.current.videoWidth || 640;
-        const actualHeight = videoRef.current.videoHeight || 480;
+        const actualWidth = videoRef.current.videoWidth || 1280;
+        const actualHeight = videoRef.current.videoHeight || 960;
         videoDimensionsRef.current = { width: actualWidth, height: actualHeight };
       }
       

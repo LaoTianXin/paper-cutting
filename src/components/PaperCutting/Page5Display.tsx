@@ -6,10 +6,15 @@ import { usePage5GestureDetection } from "../../hooks/usePage5GestureDetection";
 
 /**
  * Page 5: Image Display Stage
- * Displays the captured photo with decorative frame
+ * Displays the AI-generated paper-cut style image or captured photo
  * Returns to page1 via OK gesture or 30-second timeout
  */
-const Page5Display: React.FC<PageProps> = ({ capturedImage, onPrevStage }) => {
+const Page5Display: React.FC<PageProps> = ({
+  capturedImage,
+  aiGeneratedImage,
+  generationError,
+  onPrevStage
+}) => {
   const [countdown, setCountdown] = useState(30);
 
   // Handle return to page1
@@ -72,8 +77,22 @@ const Page5Display: React.FC<PageProps> = ({ capturedImage, onPrevStage }) => {
             </div>
 
             {/* Middle Image Area */}
-            <div className="bg-gray-400 w-full h-[613px] mt-[12px] flex items-center justify-center relative">
-              {capturedImage ? (
+            <div className="bg-gray-400 w-full h-[613px] mt-[12px] flex items-center justify-center relative overflow-hidden">
+              {/* Error Display */}
+              {generationError && (
+                <div className="absolute top-2 left-2 right-2 bg-red-500 bg-opacity-90 text-white text-sm px-3 py-2 rounded z-20">
+                  生成失败: {generationError}
+                </div>
+              )}
+
+              {/* Display AI Generated Image or Captured Image */}
+              {aiGeneratedImage ? (
+                <img
+                  src={aiGeneratedImage}
+                  alt="AI paper-cut style"
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : capturedImage ? (
                 <img
                   src={capturedImage}
                   alt="captured"

@@ -31,6 +31,10 @@ export interface PageProps {
   onPrevStage?: () => void;
   detectionState?: DetectionState;
   capturedImage?: string;
+  // AI generation props (for Page5)
+  aiGeneratedImage?: string;
+  isGenerating?: boolean;
+  generationError?: string;
 }
 
 // Common navigation props

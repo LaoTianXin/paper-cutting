@@ -1,13 +1,11 @@
 import React from "react";
 import { Page4Images } from "../../constants/images";
-import type { PageProps } from "../../types/paperCutting";
 
 /**
  * Page 4: Photo Capture Stage
- * Displays during photo capture and AI image generation
- * Shows frame decoration, logo, and loading indicator
+ * Displays during AI image generation
  */
-const Page4Capture: React.FC<PageProps> = () => {
+const Page4Capture: React.FC = () => {
   return (
     <>
       {/* Decorative frame overlay */}
@@ -19,7 +17,7 @@ const Page4Capture: React.FC<PageProps> = () => {
         />
       </div>
 
-       <div className="fixed inset-0" style={{ zIndex: 6 }}>
+      <div className="fixed inset-0" style={{ zIndex: 6 }}>
         <img
           src={Page4Images.shutterEffects[1]}
           alt="background"
@@ -38,21 +36,22 @@ const Page4Capture: React.FC<PageProps> = () => {
 
       {/* Generating text with pulsing animation */}
       <div className="fixed bottom-[18rem] left-1/2 transform -translate-x-1/2" style={{ zIndex: 40 }}>
-        <div 
-          className="font-dabiaosong flex  animate-pulse-slow"
+        <div
+          className="font-dabiaosong flex flex-col animate-pulse-slow"
           style={{
             fontSize: '28px',
             backgroundImage: `url(${Page4Images.shutterEffects[2]})`,
-            width:"412px",
-            height:"128px",
-            backgroundSize:"cover",
-            backgroundPosition:"center",
-            justifyContent:"center",
-            alignItems:"center",
-            color:"#B80509"
+            width: "412px",
+            height: "128px",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            justifyContent: "center",
+            alignItems: "center",
+            color: "#B80509"
           }}
         >
-          正在进行裁剪，请耐心等待...
+          <span>AI 剪纸风格生成中...</span>
+          <span style={{ fontSize: '18px', marginTop: '8px', opacity: 0.8 }}>请耐心等待，约需数十秒</span>
         </div>
       </div>
     </>

@@ -1,0 +1,212 @@
+{
+  "60": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "115:8",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "78": {
+    "inputs": {
+      "image": "c8be1308e302fbf76001443c2bed3ec850be87b545bc2-TDaSbD_fw658.webp"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "115:39": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "115:38": {
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "115:37": {
+    "inputs": {
+      "unet_name": "qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "115:66": {
+    "inputs": {
+      "shift": 3,
+      "model": [
+        "115:89",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "采样算法（AuraFlow）"
+    }
+  },
+  "115:8": {
+    "inputs": {
+      "samples": [
+        "115:3",
+        0
+      ],
+      "vae": [
+        "115:39",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "115:89": {
+    "inputs": {
+      "lora_name": "Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
+      "strength_model": 1,
+      "model": [
+        "115:37",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  },
+  "115:75": {
+    "inputs": {
+      "strength": 1,
+      "model": [
+        "115:66",
+        0
+      ]
+    },
+    "class_type": "CFGNorm",
+    "_meta": {
+      "title": "CFG归一化"
+    }
+  },
+  "115:111": {
+    "inputs": {
+      "prompt": "提取图中主体人物，去除背景，要求人物动作不变，替换成中国风红色剪纸风格，添加中国风红色剪纸风格边框，且图片尺寸保持不变",
+      "clip": [
+        "115:38",
+        0
+      ],
+      "vae": [
+        "115:39",
+        0
+      ],
+      "image1": [
+        "115:118",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": {
+      "title": "TextEncodeQwenImageEditPlus"
+    }
+  },
+  "115:88": {
+    "inputs": {
+      "pixels": [
+        "115:118",
+        0
+      ],
+      "vae": [
+        "115:39",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码"
+    }
+  },
+  "115:110": {
+    "inputs": {
+      "prompt": "图片尺寸发生改变",
+      "clip": [
+        "115:38",
+        0
+      ],
+      "vae": [
+        "115:39",
+        0
+      ],
+      "image1": [
+        "115:118",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": {
+      "title": "TextEncodeQwenImageEditPlus"
+    }
+  },
+  "115:3": {
+    "inputs": {
+      "seed": 1118877715456462,
+      "steps": 4,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "115:75",
+        0
+      ],
+      "positive": [
+        "115:111",
+        0
+      ],
+      "negative": [
+        "115:110",
+        0
+      ],
+      "latent_image": [
+        "115:88",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "115:118": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "scale_by": 1,
+      "image": [
+        "78",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "缩放图像（比例）"
+    }
+  }
+}

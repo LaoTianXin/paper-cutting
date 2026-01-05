@@ -5,6 +5,7 @@ import { CaptureState } from "./types/capture";
 import { useMediaPipe } from "./hooks/useMediaPipe";
 import { useScreenAdaptation } from "./hooks/useScreenAdaptation";
 import { Page1Images, Page2Images, Page3Images, Page4Images } from "./constants/images";
+import { generatePaperCutImage } from "./services/comfyuiService";
 
 // Import page components
 import Page1Scan from "./components/PaperCutting/Page1Scan";
@@ -32,6 +33,11 @@ const PaperCuttingApp: React.FC = () => {
     gestureConfidence: 0,
     countdownValue: 3,
   });
+
+  // AI generation state
+  const [aiGeneratedImage, setAiGeneratedImage] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string>("");
 
   const capturedImageRef = React.useRef<HTMLCanvasElement>(null);
 
@@ -119,18 +125,62 @@ const PaperCuttingApp: React.FC = () => {
         break;
 
       case CaptureState.COMPLETED:
-        setCurrentStage(PageStage.IMAGE_DISPLAY);
-        // 停止主摄像头，避免与 Page5 的摄像头冲突
-        stopCamera();
+        // 保持在 PHOTO_CAPTURE 页面，等待 AI 生成完成后再切换
+        // AI 生成逻辑在下面的 useEffect 中处理
         break;
     }
   }, [mediaPipeState, mediaPipeCountdown, stopCamera]);
+
+  // Trigger AI generation when capturedImage is set and stage is PHOTO_CAPTURE
+  // Transition to IMAGE_DISPLAY only after AI generation completes
+  useEffect(() => {
+    const generateAiImage = async () => {
+      // 只在 PHOTO_CAPTURE 阶段且有截图时触发
+      if (!capturedImage || currentStage !== PageStage.PHOTO_CAPTURE) return;
+      if (isGenerating || aiGeneratedImage) return; // Already generating or done
+
+      setIsGenerating(true);
+      setGenerationError("");
+      console.log('[PaperCuttingApp] Starting AI paper-cut image generation...');
+
+      try {
+        const result = await generatePaperCutImage(capturedImage);
+
+        if (result.success && result.image_url) {
+          console.log('[PaperCuttingApp] AI image generated:', result.image_url);
+          setAiGeneratedImage(result.image_url);
+          // AI 生成成功后，切换到 IMAGE_DISPLAY 页面
+          setCurrentStage(PageStage.IMAGE_DISPLAY);
+          // 停止主摄像头，避免与 Page5 的摄像头冲突
+          stopCamera();
+        } else {
+          console.error('[PaperCuttingApp] AI generation failed:', result.error);
+          setGenerationError(result.error || '生成失败');
+          // 即使失败也跳转到 Page5，显示原始截图和错误信息
+          setCurrentStage(PageStage.IMAGE_DISPLAY);
+          stopCamera();
+        }
+      } catch (error) {
+        console.error('[PaperCuttingApp] AI generation error:', error);
+        setGenerationError(error instanceof Error ? error.message : '未知错误');
+        // 即使失败也跳转到 Page5，显示原始截图和错误信息
+        setCurrentStage(PageStage.IMAGE_DISPLAY);
+        stopCamera();
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
+    generateAiImage();
+  }, [capturedImage, currentStage, isGenerating, aiGeneratedImage, stopCamera]);
 
   // Handle restart
   const handleRestart = useCallback(() => {
     handleReset();
     setCapturedImage("");
     setFrozenFrameUrl("");
+    setAiGeneratedImage("");
+    setGenerationError("");
     setCurrentStage(PageStage.SCAN_START);
   }, [handleReset]);
 
@@ -174,6 +224,8 @@ const PaperCuttingApp: React.FC = () => {
         return (
           <Page5Display
             capturedImage={capturedImage}
+            aiGeneratedImage={aiGeneratedImage}
+            generationError={generationError}
             onPrevStage={handleRestart}
           />
         );
@@ -187,18 +239,19 @@ const PaperCuttingApp: React.FC = () => {
     <>
       {/* Hidden video and canvas for MediaPipe - MUST render immediately for refs to attach */}
       {/* Source video and canvas for MediaPipe - processing buffer, kept hidden but updated */}
+      {/* High resolution: 1280x960 (4:3) for better image quality */}
       <div style={{ visibility: "hidden", position: "absolute", zIndex: -10, pointerEvents: "none", left: -1000, top: -1000 }}>
         <video
           ref={videoRef}
-          style={{ width: 640, height: 480 }}
+          style={{ width: 1280, height: 960 }}
           autoPlay
           playsInline
         />
         <canvas
           ref={canvasRef}
-          width={640}
-          height={480}
-          style={{ width: 640, height: 480 }}
+          width={1280}
+          height={960}
+          style={{ width: 1280, height: 960 }}
         />
         <canvas ref={capturedImageRef} />
       </div>
