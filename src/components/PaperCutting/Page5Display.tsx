@@ -136,7 +136,10 @@ const Page5Display: React.FC<PageProps> = ({
             </div>
 
             {/* Middle Image Area */}
-            <div className="bg-gray-400 w-full h-[613px] mt-[12px] flex items-center justify-center relative overflow-hidden">
+            <div
+              className="w-full h-[613px] mt-[12px] flex items-center justify-center relative overflow-hidden bg-no-repeat bg-center bg-cover"
+              style={{ backgroundImage: `url(${Page5Images.decorations[5]})` }}
+            >
               {/* Display AI Generated Image or Captured Image */}
               {displayImage ? (
                 <img

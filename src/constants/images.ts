@@ -46,6 +46,8 @@ import page5Decoration2 from "../assets/images/page5/decoration-2.png";
 import page5Decoration3 from "../assets/images/page5/decoration-3.png";
 import page5Decoration4 from "../assets/images/page5/decoration-4.png";
 import page5Decoration5 from "../assets/images/page5/decoration-5.png";
+import page5Decoration6 from "../assets/images/page5/decoration-6.png";
+
 import page5Ornament from "../assets/images/page5/ornament.png";
 import page5Border from "../assets/images/page5/border.png";
 
@@ -101,6 +103,7 @@ export const Page5Images = {
     page5Decoration3,
     page5Decoration4,
     page5Decoration5,
+    page5Decoration6
   ],
   ornament: page5Ornament,
   border: page5Border,

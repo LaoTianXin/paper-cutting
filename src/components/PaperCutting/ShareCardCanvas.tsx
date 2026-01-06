@@ -76,6 +76,7 @@ const ShareCardCanvas = forwardRef<ShareCardCanvasRef, ShareCardCanvasProps>(
             const imageSources = [
                 Page5Images.decorations[4], // Background (decoration-5) - outermost layer
                 Page5Images.decorations[2], // Frame (decoration-3)
+                Page5Images.decorations[5], // Image area background (decoration-6)
                 Page5Images.maskGroup,      // Title
             ];
 
@@ -202,9 +203,15 @@ const ShareCardCanvas = forwardRef<ShareCardCanvasRef, ShareCardCanvasProps>(
             const contentWidth = FRAME_WIDTH - 35 * 2; // Use original padding relative to frame
             const imageAreaTop = TITLE_TOP + 52 + 12; // Title height + margin
 
-            // Draw gray background for image area
-            ctx.fillStyle = '#9CA3AF'; // gray-400
-            ctx.fillRect(PADDING_X, imageAreaTop, contentWidth, IMAGE_HEIGHT);
+            // Draw background image (decoration-6) for image area
+            const imageBgImage = loadedImagesRef.current.get(Page5Images.decorations[5]);
+            if (imageBgImage) {
+                ctx.drawImage(imageBgImage, PADDING_X, imageAreaTop, contentWidth, IMAGE_HEIGHT);
+            } else {
+                // Fallback: fill with gray if background not loaded
+                ctx.fillStyle = '#9CA3AF'; // gray-400
+                ctx.fillRect(PADDING_X, imageAreaTop, contentWidth, IMAGE_HEIGHT);
+            }
 
             // Draw the main image if available
             if (image) {
