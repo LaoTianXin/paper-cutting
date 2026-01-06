@@ -25,7 +25,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
       // If width/height props provided, use those
       if (width && height) {
         setCanvasDimensions({ width, height });
-        return;
+        return true; // Successfully set
       }
 
       // Otherwise use container size if available
@@ -33,9 +33,13 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
         const rect = containerRef.current.getBoundingClientRect();
         const canvasWidth = Math.floor(rect.width);
         const canvasHeight = Math.floor(rect.height);
-        setCanvasDimensions({ width: canvasWidth, height: canvasHeight });
-        console.log('CameraFeed: canvas size from container', canvasWidth, 'x', canvasHeight);
-        return;
+
+        // Only update if we have valid dimensions
+        if (canvasWidth > 0 && canvasHeight > 0) {
+          setCanvasDimensions({ width: canvasWidth, height: canvasHeight });
+          console.log('CameraFeed: canvas size from container', canvasWidth, 'x', canvasHeight);
+          return true; // Successfully set
+        }
       }
 
       // Fallback: calculate from window width
@@ -44,15 +48,49 @@ const CameraFeed: React.FC<CameraFeedProps> = ({ sourceRef, className = '', styl
       const canvasHeight = Math.floor(canvasWidth / 10 * 16); // 10:16 aspect ratio
 
       setCanvasDimensions({ width: canvasWidth, height: canvasHeight });
-      console.log('CameraFeed: canvas size from window', canvasWidth, 'x', canvasHeight);
+      console.log('CameraFeed: canvas size from window (fallback)', canvasWidth, 'x', canvasHeight);
+      return true;
     };
 
-    // Initial calculation
-    updateCanvasSize();
+    // Initial calculation with retry for when container isn't laid out yet
+    let retryCount = 0;
+    const maxRetries = 10;
 
-    // Update on window resize
+    const tryUpdateSize = () => {
+      if (updateCanvasSize()) {
+        return;
+      }
+      retryCount++;
+      if (retryCount < maxRetries) {
+        setTimeout(tryUpdateSize, 50);
+      }
+    };
+
+    // Delay initial calculation slightly to ensure DOM is ready
+    setTimeout(tryUpdateSize, 10);
+
+    // Use ResizeObserver for more reliable size detection
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width: w, height: h } = entry.contentRect;
+        if (w > 0 && h > 0) {
+          setCanvasDimensions({ width: Math.floor(w), height: Math.floor(h) });
+          console.log('CameraFeed: canvas size from ResizeObserver', Math.floor(w), 'x', Math.floor(h));
+        }
+      }
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    // Also listen for window resize as fallback
     window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
+
+    return () => {
+      window.removeEventListener('resize', updateCanvasSize);
+      resizeObserver.disconnect();
+    };
   }, [width, height]);
 
   useEffect(() => {

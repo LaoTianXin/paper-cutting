@@ -694,7 +694,9 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
 
     try {
       console.log('正在重新启动摄像头...');
-      const camera = new Camera(videoRef.current, {
+      const video = videoRef.current;
+      
+      const camera = new Camera(video, {
         onFrame: async () => {
           if (!videoRef.current) return;
           const currentState = stateRef.current;
@@ -726,12 +728,31 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
       await camera.start();
       cameraRef.current = camera;
       
-      // 更新实际视频分辨率
-      if (videoRef.current) {
-        const actualWidth = videoRef.current.videoWidth || 1280;
-        const actualHeight = videoRef.current.videoHeight || 960;
-        videoDimensionsRef.current = { width: actualWidth, height: actualHeight };
-      }
+      // 等待 video 元素正确加载分辨率（最多等待 2 秒）
+      const waitForVideoDimensions = (): Promise<{ width: number; height: number }> => {
+        return new Promise((resolve) => {
+          let attempts = 0;
+          const maxAttempts = 40; // 40 * 50ms = 2s
+          
+          const checkDimensions = () => {
+            attempts++;
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+              console.log(`✅ 视频分辨率已就绪: ${video.videoWidth}x${video.videoHeight} (尝试 ${attempts} 次)`);
+              resolve({ width: video.videoWidth, height: video.videoHeight });
+            } else if (attempts >= maxAttempts) {
+              console.warn('⚠️ 等待视频分辨率超时，使用默认值 1280x960');
+              resolve({ width: 1280, height: 960 });
+            } else {
+              setTimeout(checkDimensions, 50);
+            }
+          };
+          
+          checkDimensions();
+        });
+      };
+      
+      const dimensions = await waitForVideoDimensions();
+      videoDimensionsRef.current = dimensions;
       
       console.log('✅ 摄像头重新启动成功');
     } catch (err) {
@@ -752,8 +773,10 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     frameCountRef.current = 0;
     frozenFrameRef.current = null;
     
-    // 重新启动摄像头（如果已停止）
-    restartCamera();
+    // 延迟重启摄像头，等待 Page5 的摄像头完全释放（避免摄像头资源冲突）
+    setTimeout(() => {
+      restartCamera();
+    }, 300);
   }, [restartCamera]);
 
   return {

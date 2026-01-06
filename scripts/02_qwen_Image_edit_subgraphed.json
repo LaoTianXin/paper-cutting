@@ -3,7 +3,7 @@
     "inputs": {
       "filename_prefix": "ComfyUI",
       "images": [
-        "124",
+        "130",
         0
       ]
     },
@@ -21,10 +21,10 @@
       "title": "加载图像"
     }
   },
-  "124": {
+  "130": {
     "inputs": {
       "model": "RMBG-2.0",
-      "sensitivity": 1,
+      "sensitivity": 0.5,
       "process_res": 1024,
       "mask_blur": 0,
       "mask_offset": 0,
@@ -128,27 +128,6 @@
       "title": "CFG归一化"
     }
   },
-  "115:111": {
-    "inputs": {
-      "prompt": "提取图中主体人物，去除背景，要求人物动作不变，替换成中国风红色剪纸风格，添加中国风红色剪纸风格边框，且图片尺寸保持不变",
-      "clip": [
-        "115:38",
-        0
-      ],
-      "vae": [
-        "115:39",
-        0
-      ],
-      "image1": [
-        "115:118",
-        0
-      ]
-    },
-    "class_type": "TextEncodeQwenImageEditPlus",
-    "_meta": {
-      "title": "TextEncodeQwenImageEditPlus"
-    }
-  },
   "115:88": {
     "inputs": {
       "pixels": [
@@ -165,9 +144,9 @@
       "title": "VAE编码"
     }
   },
-  "115:110": {
+  "115:111": {
     "inputs": {
-      "prompt": "图片尺寸发生改变",
+      "prompt": "将图中人物替换成中国风红色剪纸风格，要求动作不变，图片尺寸保持不变",
       "clip": [
         "115:38",
         0
@@ -228,6 +207,27 @@
     "class_type": "ImageScaleBy",
     "_meta": {
       "title": "缩放图像（比例）"
+    }
+  },
+  "115:110": {
+    "inputs": {
+      "prompt": "图片尺寸发生改变，动作发生改变",
+      "clip": [
+        "115:38",
+        0
+      ],
+      "vae": [
+        "115:39",
+        0
+      ],
+      "image1": [
+        "115:118",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": {
+      "title": "TextEncodeQwenImageEditPlus"
     }
   }
 }

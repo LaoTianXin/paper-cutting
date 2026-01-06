@@ -140,18 +140,27 @@ const Page5Display: React.FC<PageProps> = ({
               className="w-full h-[613px] mt-[12px] flex items-center justify-center relative overflow-hidden bg-no-repeat bg-center bg-cover"
               style={{ backgroundImage: `url(${Page5Images.decorations[5]})` }}
             >
-              {/* Display AI Generated Image or Captured Image */}
-              {displayImage ? (
+              {/* Container for card border + AI image, scaled to 80% */}
+              <div className="relative w-[80%] h-[80%] flex items-center justify-center">
+                {/* Card Border - as background layer behind the image */}
                 <img
-                  src={displayImage}
-                  alt="paper-cut style"
-                  className="max-w-full max-h-full object-contain"
+                  src={Page5Images.cardBorder}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-contain pointer-events-none z-0"
                 />
-              ) : (
-                <div className="absolute inset-[6.5%] w-[87%] h-[87%] bg-gray-200 flex items-center justify-center text-gray-500">
-                  暂无图片
-                </div>
-              )}
+                {/* Display AI Generated Image or Captured Image */}
+                {displayImage ? (
+                  <img
+                    src={displayImage}
+                    alt="paper-cut style"
+                    className="max-w-[92%] max-h-[92%] object-contain z-10"
+                  />
+                ) : (
+                  <div className="w-[87%] h-[87%] bg-gray-200 flex items-center justify-center text-gray-500 z-10">
+                    暂无图片
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

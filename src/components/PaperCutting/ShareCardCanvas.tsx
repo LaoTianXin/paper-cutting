@@ -78,6 +78,7 @@ const ShareCardCanvas = forwardRef<ShareCardCanvasRef, ShareCardCanvasProps>(
                 Page5Images.decorations[2], // Frame (decoration-3)
                 Page5Images.decorations[5], // Image area background (decoration-6)
                 Page5Images.maskGroup,      // Title
+                Page5Images.cardBorder,     // Card border for AI image
             ];
 
             // Add the main image if available
@@ -213,28 +214,51 @@ const ShareCardCanvas = forwardRef<ShareCardCanvasRef, ShareCardCanvasProps>(
                 ctx.fillRect(PADDING_X, imageAreaTop, contentWidth, IMAGE_HEIGHT);
             }
 
-            // Draw the main image if available
+            // Calculate 80% scaled area for card border + AI image
+            const outerScaleFactor = 0.80;
+            const scaledAreaWidth = contentWidth * outerScaleFactor;
+            const scaledAreaHeight = IMAGE_HEIGHT * outerScaleFactor;
+            const areaOffsetX = (contentWidth - scaledAreaWidth) / 2;
+            const areaOffsetY = (IMAGE_HEIGHT - scaledAreaHeight) / 2;
+            const scaledAreaX = PADDING_X + areaOffsetX;
+            const scaledAreaY = imageAreaTop + areaOffsetY;
+
+            // Draw card border as background layer (80% size, centered)
+            const cardBorderImage = loadedImagesRef.current.get(Page5Images.cardBorder);
+            if (cardBorderImage) {
+                ctx.drawImage(cardBorderImage, scaledAreaX, scaledAreaY, scaledAreaWidth, scaledAreaHeight);
+                console.log('[ShareCardCanvas] Drew card border as background (80% size)');
+            }
+
+            // Draw the main image if available (92% of the 80% border area to show border)
             if (image) {
                 const mainImage = loadedImagesRef.current.get(image);
                 if (mainImage) {
-                    // Calculate aspect ratio fit
+                    // Calculate 92% size within the scaled border area
+                    const innerScaleFactor = 0.92;
+                    const innerWidth = scaledAreaWidth * innerScaleFactor;
+                    const innerHeight = scaledAreaHeight * innerScaleFactor;
+                    const innerOffsetX = (scaledAreaWidth - innerWidth) / 2;
+                    const innerOffsetY = (scaledAreaHeight - innerHeight) / 2;
+
+                    // Calculate aspect ratio fit within inner area
                     const imgRatio = mainImage.width / mainImage.height;
-                    const areaRatio = contentWidth / IMAGE_HEIGHT;
+                    const areaRatio = innerWidth / innerHeight;
 
                     let drawWidth, drawHeight, drawX, drawY;
 
                     if (imgRatio > areaRatio) {
                         // Image is wider, fit to width
-                        drawWidth = contentWidth;
-                        drawHeight = contentWidth / imgRatio;
-                        drawX = PADDING_X;
-                        drawY = imageAreaTop + (IMAGE_HEIGHT - drawHeight) / 2;
+                        drawWidth = innerWidth;
+                        drawHeight = innerWidth / imgRatio;
+                        drawX = scaledAreaX + innerOffsetX;
+                        drawY = scaledAreaY + innerOffsetY + (innerHeight - drawHeight) / 2;
                     } else {
                         // Image is taller, fit to height
-                        drawHeight = IMAGE_HEIGHT;
-                        drawWidth = IMAGE_HEIGHT * imgRatio;
-                        drawX = PADDING_X + (contentWidth - drawWidth) / 2;
-                        drawY = imageAreaTop;
+                        drawHeight = innerHeight;
+                        drawWidth = innerHeight * imgRatio;
+                        drawX = scaledAreaX + innerOffsetX + (innerWidth - drawWidth) / 2;
+                        drawY = scaledAreaY + innerOffsetY;
                     }
 
                     ctx.drawImage(mainImage, drawX, drawY, drawWidth, drawHeight);
