@@ -35,6 +35,16 @@ import page4Logo from "../assets/images/page4/logo.png";
 import page4Background from "../assets/images/page4/background.png";
 import page4PaperCuttingFrame from "../assets/images/page4/paper-cutting-frame.png";
 
+// Standby Paper-Cutting Artwork Images (Page 4)
+import standbyPaperCutting1 from "../assets/images/page4/standby-1.png";
+import standbyPaperCutting2 from "../assets/images/page4/standby-2.png";
+import standbyPaperCutting3 from "../assets/images/page4/standby-3.png";
+import standbyPaperCutting4 from "../assets/images/page4/standby-4.png";
+import standbyPaperCutting5 from "../assets/images/page4/standby-5.png";
+import standbyPaperCutting6 from "../assets/images/page4/standby-6.png";
+import standbyPaperCutting7 from "../assets/images/page4/standby-7.png";
+import standbyPaperCutting8 from "../assets/images/page4/standby-8.png";
+
 
 // Page 5 - Image Display
 import page5Frame from "../assets/images/page5/frame.png";
@@ -92,6 +102,17 @@ export const Page4Images = {
   logo: page4Logo,
   paperCuttingFrame: page4PaperCuttingFrame,
 };
+
+export const StandbyPaperCuttingImages = [
+  standbyPaperCutting1,
+  standbyPaperCutting2,
+  standbyPaperCutting3,
+  standbyPaperCutting4,
+  standbyPaperCutting5,
+  standbyPaperCutting6,
+  standbyPaperCutting7,
+  standbyPaperCutting8,
+];
 
 export const Page5Images = {
   frame: page5Frame,

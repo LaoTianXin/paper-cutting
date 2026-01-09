@@ -293,12 +293,11 @@ const PaperCuttingApp: React.FC = () => {
           </>
         )}
 
-      {/* Persistent camera component - shown for all stages except IMAGE_DISPLAY */}
-      {!isLoading && !error && currentStage !== PageStage.IMAGE_DISPLAY && (
+      {/* Persistent camera component - shown for Page 1-3 only, hidden for Page 4 and 5 */}
+      {!isLoading && !error && currentStage !== PageStage.IMAGE_DISPLAY && currentStage !== PageStage.PHOTO_CAPTURE && (
         <CameraWithFrame
           sourceRef={canvasRef}
           frameImage={getCurrentFrameImage()}
-          frozenFrameUrl={currentStage === PageStage.PHOTO_CAPTURE ? frozenFrameUrl : undefined}
         />
       )}
 
