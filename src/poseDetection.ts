@@ -50,7 +50,8 @@ export async function initializePose(): Promise<Pose> {
     const pose = new Pose({
       locateFile: (file) => {
         // 使用本地文件，避免 CDN 加载延迟
-        return `/mediapipe/pose/${file}`;
+        // 使用 import.meta.env.BASE_URL 确保路径正确
+        return `${import.meta.env.BASE_URL}mediapipe/pose/${file}`;
       },
     });
 
@@ -164,11 +165,10 @@ export function selectLargestPose(
   const allRects: BodyRect[] = [];
   let largestRect: BodyRect | null = null;
   let largestArea = 0;
-  let largestIndex = -1;
   let largestLandmarks: PoseResults["poseLandmarks"] | null = null;
 
   // 遍历所有检测结果
-  results.forEach((result, index) => {
+  results.forEach((result) => {
     if (result.poseLandmarks) {
       const rect = calculateBodyRect(
         result.poseLandmarks,
@@ -182,7 +182,6 @@ export function selectLargestPose(
         if (area > largestArea) {
           largestArea = area;
           largestRect = rect;
-          largestIndex = index;
           largestLandmarks = result.poseLandmarks;
         }
       }

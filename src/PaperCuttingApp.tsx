@@ -26,7 +26,7 @@ const PaperCuttingApp: React.FC = () => {
   useScreenAdaptation(720, 1280);
   const [currentStage, setCurrentStage] = useState<PageStage>(PageStage.SCAN_START);
   const [capturedImage, setCapturedImage] = useState<string>("");
-  const [frozenFrameUrl, setFrozenFrameUrl] = useState<string>("");
+  const [, setFrozenFrameUrl] = useState<string>("");
   const [detectionState, setDetectionState] = useState<DetectionState>({
     personDetected: false,
     gestureDetected: false,

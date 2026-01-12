@@ -218,7 +218,7 @@ export function usePage5GestureDetection({
 
         // Initialize Hands
         hands = new Hands({
-          locateFile: (file) => `/mediapipe/hands/${file}`,
+          locateFile: (file) => `${import.meta.env.BASE_URL}mediapipe/hands/${file}`,
         });
         hands.setOptions({
           maxNumHands: 2,

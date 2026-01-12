@@ -188,14 +188,16 @@ const Page5Display: React.FC<PageProps> = ({
           )}
 
           {sharePageUrl && !uploading && (
-            <div className="flex flex-col items-center opacity-90">
-              <QRCodeSVG
-                value={sharePageUrl}
-                size={50}
-                bgColor="#FFFFFF"
-                fgColor="#B80509"
-                level="M"
-              />
+            <div className="flex flex-col items-center">
+              <div className="bg-white p-3 rounded-lg shadow-lg">
+                <QRCodeSVG
+                  value={sharePageUrl}
+                  size={120}
+                  bgColor="#FFFFFF"
+                  fgColor="#B80509"
+                  level="M"
+                />
+              </div>
               <div style={{
                 backgroundImage: `url(${Page5Images.border})`,
                 backgroundSize: 'cover',

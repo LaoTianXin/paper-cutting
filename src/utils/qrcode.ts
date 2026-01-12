@@ -10,5 +10,9 @@
  */
 export function createSharePageUrl(dataId: string, baseUrl?: string): string {
   const origin = baseUrl || window.location.origin;
-  return `${origin}/share?id=${dataId}`;
+  // 使用 import.meta.env.BASE_URL 获取配置的 base 路径 (如 /paper-cutting/)
+  const basePath = import.meta.env.BASE_URL || '/';
+  // 确保 basePath 以 / 结尾，share 前面不需要额外的 /
+  const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
+  return `${origin}${normalizedBase}share?id=${dataId}`;
 }

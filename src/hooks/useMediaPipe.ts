@@ -571,7 +571,7 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         const [poseInstance, handsInstance] = await Promise.all([
           initializePose(),
           (async () => {
-            const h = new Hands({ locateFile: (file) => `/mediapipe/hands/${file}` });
+            const h = new Hands({ locateFile: (file) => `${import.meta.env.BASE_URL}mediapipe/hands/${file}` });
             h.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
             return h;
           })(),
