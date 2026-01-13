@@ -82,8 +82,20 @@ const ShareCardCanvas = forwardRef<ShareCardCanvasRef, ShareCardCanvasProps>(
             ];
 
             // Add the main image if available
+            // IMPORTANT: Add timestamp to bypass browser cache for the main image
+            // This fixes the issue where the browser uses a cached non-CORS response
+            // for the CORS-requiring canvas drawImage call
+            let mainImageSrc = null;
             if (image) {
-                imageSources.push(image);
+                // Only append timestamp if it's a remote URL (http/https), not data: URI
+                if (image.startsWith('http')) {
+                    const separator = image.includes('?') ? '&' : '?';
+                    mainImageSrc = `${image}${separator}t=${new Date().getTime()}`;
+                    imageSources.push(mainImageSrc);
+                } else {
+                    mainImageSrc = image;
+                    imageSources.push(image);
+                }
             }
 
             const loadPromises = imageSources.map((src) => {
@@ -95,13 +107,14 @@ const ShareCardCanvas = forwardRef<ShareCardCanvasRef, ShareCardCanvasProps>(
                     }
 
                     const img = new Image();
-                    img.crossOrigin = 'anonymous';
+                    img.crossOrigin = 'anonymous'; // Enable CORS for all images
                     img.onload = () => {
+                        console.log(`[ShareCardCanvas] Loaded: ${src.substring(0, 50)}...`);
                         loadedImagesRef.current.set(src, img);
                         resolve();
                     };
-                    img.onerror = () => {
-                        console.warn(`[ShareCardCanvas] Failed to load image: ${src}`);
+                    img.onerror = (e) => {
+                        console.warn(`[ShareCardCanvas] Failed to load image: ${src}`, e);
                         resolve(); // Continue even if one fails
                     };
                     img.src = src;
@@ -110,6 +123,21 @@ const ShareCardCanvas = forwardRef<ShareCardCanvasRef, ShareCardCanvasProps>(
 
             await Promise.all(loadPromises);
             setImagesLoaded(true);
+
+            // If we modified the main image source with a timestamp, we need to map it back 
+            // so the draw function can find it using the original prop 'image' key, 
+            // OR we ensure the draw function uses the same logic.
+            // Better approach: Store the loaded image under the *original* key (prop 'image') 
+            // if we modified it, or just rely on the fact that we'll look it up by the mainImageSrc.
+
+            // Let's update the loadedImagesRef to satisfy the lookup in the draw function.
+            // The draw function uses `loadedImagesRef.current.get(image)`.
+            if (image && mainImageSrc && mainImageSrc !== image) {
+                const img = loadedImagesRef.current.get(mainImageSrc);
+                if (img) {
+                    loadedImagesRef.current.set(image, img);
+                }
+            }
         }, [image]);
 
         // Handle container resize
