@@ -568,14 +568,23 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
           throw new Error('Video 或 Canvas 元素未找到');
         }
 
-        const [poseInstance, handsInstance] = await Promise.all([
-          initializePose(),
-          (async () => {
-            const h = new Hands({ locateFile: (file) => `${import.meta.env.BASE_URL}mediapipe/hands/${file}` });
-            h.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
-            return h;
-          })(),
-        ]);
+        // Initialize sequentially to avoid race conditions with shared global variables in loaders
+        console.log('Initializing Pose...');
+        const poseInstance = await initializePose();
+        
+        console.log('Initializing Hands...');
+        const handsInstance = await (async () => {
+          const h = new Hands({ 
+            locateFile: (file) => {
+              if (file.includes('pose')) {
+                return `${import.meta.env.BASE_URL}mediapipe/pose/${file}`;
+              }
+              return `${import.meta.env.BASE_URL}mediapipe/hands/${file}`;
+            }
+          });
+          h.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
+          return h;
+        })();
 
         if (!mounted) return;
         pose = poseInstance;

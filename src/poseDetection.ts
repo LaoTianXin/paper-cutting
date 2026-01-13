@@ -51,6 +51,12 @@ export async function initializePose(): Promise<Pose> {
       locateFile: (file) => {
         // 使用本地文件，避免 CDN 加载延迟
         // 使用 import.meta.env.BASE_URL 确保路径正确
+        if (file.includes('hands')) {
+          return `${import.meta.env.BASE_URL}mediapipe/hands/${file}`;
+        }
+        if (file.includes('pose')) {
+          return `${import.meta.env.BASE_URL}mediapipe/pose/${file}`;
+        }
         return `${import.meta.env.BASE_URL}mediapipe/pose/${file}`;
       },
     });
