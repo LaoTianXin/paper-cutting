@@ -10,7 +10,8 @@ const UPLOAD_API_URL = import.meta.env.VITE_UPLOAD_API_URL || '';
  * It fetches the image data from the server using the data ID,
  * then displays the image and provides save functionality.
  * 
- * URL format: /share?id=<data_id>
+ * URL format: <base_url>?id=<data_id>
+ * Example: https://example.com/paper-cutting/?id=abc123
  */
 
 interface ShareData {
