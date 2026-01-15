@@ -582,7 +582,7 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
               return `${import.meta.env.BASE_URL}mediapipe/hands/${file}`;
             }
           });
-          h.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
+          h.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.3 });
           return h;
         })();
 
