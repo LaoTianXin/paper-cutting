@@ -177,7 +177,7 @@ const Page5Display: React.FC<PageProps> = ({
         </div>
 
         {/* QR Code Section - positioned on the right side */}
-        <div className="absolute right-[90px] top-[400px]  flex flex-col items-center z-30">
+        <div className="absolute right-[10px] top-[250px]  flex flex-col items-center z-30">
           {uploading && (
             <div className="bg-white/90 rounded-lg p-4 shadow-lg">
               <div className="w-[50px] h-[50px] flex items-center justify-center">
@@ -192,7 +192,7 @@ const Page5Display: React.FC<PageProps> = ({
               <div className="bg-white p-3 rounded-lg shadow-lg">
                 <QRCodeSVG
                   value={sharePageUrl}
-                  size={120}
+                  size={100}
                   bgColor="#FFFFFF"
                   fgColor="#B80509"
                   level="M"
@@ -226,9 +226,9 @@ const Page5Display: React.FC<PageProps> = ({
         )}
 
         {/* Bottom Interaction Area */}
-        <div className="absolute bottom-[216px] left-1/2 -translate-x-1/2 flex flex-col items-center w-full">
+        <div className="absolute bottom-[180px] left-1/2 -translate-x-1/2 flex flex-col items-center w-full">
           {/* Countdown UI with Progress Ring */}
-          <div className="mb-[-8px] flex items-center justify-center relative">
+          <div className="mb-[-32px] flex items-center justify-center relative">
             {/* Progress Ring - visible when gesture is detected */}
             {isGestureDetected && (
               <svg
@@ -262,9 +262,9 @@ const Page5Display: React.FC<PageProps> = ({
                 />
               </svg>
             )}
-            <div className="rounded-full font-bold text-[#B80509] z-10">
-              <span className="text-[60px]">{countdown}</span>
-              <span className="text-[18px]">秒</span>
+            <div className="rounded-full text-[#B80509] z-10" style={{ fontFamily: "font-FangZheng DaBiaoSong" }}>
+              <span className="text-[128px]">{countdown}</span>
+              <span className="text-[36px]">秒</span>
             </div>
           </div>
 

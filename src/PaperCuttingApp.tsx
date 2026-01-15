@@ -31,6 +31,7 @@ const PaperCuttingApp: React.FC = () => {
     personDetected: false,
     gestureDetected: false,
     gestureConfidence: 0,
+    gestureProgress: 0,
     countdownValue: 3,
   });
 
@@ -95,6 +96,7 @@ const PaperCuttingApp: React.FC = () => {
           personDetected: true,
           gestureDetected: false,
           gestureConfidence: 0,
+          gestureProgress: 0,
         }));
         break;
 
@@ -105,6 +107,7 @@ const PaperCuttingApp: React.FC = () => {
           personDetected: true,
           gestureDetected: true,
           gestureConfidence: 0.8, // Approximate confidence
+          // gestureProgress is updated by the timer effect below
         }));
         break;
 
@@ -130,6 +133,37 @@ const PaperCuttingApp: React.FC = () => {
         break;
     }
   }, [mediaPipeState, mediaPipeCountdown, stopCamera]);
+
+  // Update gestureProgress based on time when gesture is detected
+  // Progress goes from 0 to 1 over 3 seconds
+  useEffect(() => {
+    if (mediaPipeState !== CaptureState.GESTURE_DETECTED) {
+      // Reset progress when gesture is lost
+      setDetectionState(prev => {
+        if (prev.gestureProgress !== 0) {
+          return { ...prev, gestureProgress: 0 };
+        }
+        return prev;
+      });
+      return;
+    }
+
+    // Start time for progress calculation
+    const startTime = Date.now();
+    const duration = 3000; // 3 seconds
+
+    const updateProgress = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      setDetectionState(prev => ({ ...prev, gestureProgress: progress }));
+    };
+
+    // Update at 60fps for smooth animation
+    const intervalId = setInterval(updateProgress, 16);
+    updateProgress(); // Initial update
+
+    return () => clearInterval(intervalId);
+  }, [mediaPipeState]);
 
   // Trigger AI generation when capturedImage is set and stage is PHOTO_CAPTURE
   // Transition to IMAGE_DISPLAY only after AI generation completes

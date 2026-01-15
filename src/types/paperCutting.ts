@@ -15,6 +15,7 @@ export interface DetectionState {
   personDetected: boolean;
   gestureDetected: boolean;
   gestureConfidence: number;
+  gestureProgress: number; // 0-1, time-based progress for gesture hold (3s to reach 1)
   countdownValue: number;
 }
 

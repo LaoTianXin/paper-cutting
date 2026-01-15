@@ -7,7 +7,13 @@ import type { PageProps } from "../../types/paperCutting";
  * Only renders UI decorations - camera is handled by PaperCuttingApp
  */
 const Page2Gesture: React.FC<PageProps> = ({ detectionState }) => {
-  const confidence = detectionState?.gestureConfidence ?? 0;
+  // Use gestureProgress for time-based progress (0-1 over 3 seconds)
+  const progress = detectionState?.gestureProgress ?? 0;
+  const isGestureDetected = detectionState?.gestureDetected ?? false;
+
+  // Calculate circular progress for SVG (same as Page5)
+  const circumference = 2 * Math.PI * 45; // radius = 45
+  const strokeDashoffset = circumference - progress * circumference;
 
   return (
     <>
@@ -16,9 +22,9 @@ const Page2Gesture: React.FC<PageProps> = ({ detectionState }) => {
         {/* Main content area */}
         <div className="relative h-full pointer-events-none">
           {/* Fixed position text */}
-          <div 
+          <div
             className="absolute font-dabiaosong text-[#B80509] drop-shadow-lg text-center whitespace-nowrap"
-            style={{ 
+            style={{
               fontSize: '36px',
               lineHeight: '1.2',
               bottom: '342px',
@@ -31,38 +37,67 @@ const Page2Gesture: React.FC<PageProps> = ({ detectionState }) => {
             准备开始吧
           </div>
 
-          {/* Adjustable position image */}
-          <div 
-            className="absolute"
+          {/* Adjustable position image with circular progress ring */}
+          <div
+            className="absolute flex items-center justify-center"
             style={{
               bottom: '200px',
               left: '50%',
               transform: 'translateX(-50%)',
             }}
           >
+            {/* Progress Ring - visible when gesture is detected */}
+            {isGestureDetected && (
+              <svg
+                className="absolute"
+                width="160"
+                height="160"
+                viewBox="0 0 100 100"
+                style={{ transform: 'rotate(-90deg)' }}
+              >
+                {/* Background circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="rgba(184, 5, 9, 0.2)"
+                  strokeWidth="6"
+                />
+                {/* Progress circle */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="#B80509"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  style={{ transition: 'stroke-dashoffset 0.1s ease-out' }}
+                />
+              </svg>
+            )}
             <img
               src={Page2Images.gestureIcon}
               alt="Gesture Icon"
-              className="w-[120px] h-auto"
+              className="w-[120px] h-auto z-10"
             />
           </div>
 
-          {/* Confidence indicator */}
-          {confidence > 0 && (
-            <div 
-              className="absolute bg-white bg-opacity-30 rounded-full overflow-hidden backdrop-blur-sm"
-              style={{ 
-                width: '150px',
-                height: '8px',
+          {/* Progress percentage text - shown when gesture detected */}
+          {isGestureDetected && (
+            <div
+              className="absolute font-dabiaosong text-[#B80509] text-center animate-pulse"
+              style={{
+                fontSize: '20px',
                 bottom: '160px',
                 left: '50%',
                 transform: 'translateX(-50%)',
               }}
             >
-              <div
-                className="bg-gradient-to-r from-green-400 to-green-600 h-full transition-all duration-300 rounded-full"
-                style={{ width: `${confidence * 100}%` }}
-              />
+              保持手势中... {Math.round(progress * 100)}%
             </div>
           )}
         </div>
