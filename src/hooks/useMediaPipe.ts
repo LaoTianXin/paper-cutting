@@ -6,6 +6,7 @@ import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { initializePose, calculateBodyRect, type BodyRect } from "../poseDetection";
 import { CaptureState } from "../types/capture";
 import { recognizeOKGesture } from "../utils/gestureRecognition";
+import { useSettings } from "../contexts/SettingsContext";
 
 // 目标显示比例 10:16（与 CameraFeed 保持一致）
 const TARGET_ASPECT_RATIO = 10 / 16;
@@ -98,6 +99,10 @@ interface UseMediaPipeProps {
 }
 
 export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
+  // Get settings from context
+  const { settings, updateFps } = useSettings();
+  const settingsRef = React.useRef(settings);
+  
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   
@@ -131,6 +136,15 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
   const latestHandsResultsRef = React.useRef<Results | null>(null);
   const pendingDrawRef = React.useRef<boolean>(false);
   const frozenFrameRef = React.useRef<string | null>(null);
+  
+  // FPS tracking
+  const fpsFrameCountRef = React.useRef(0);
+  const fpsLastTimeRef = React.useRef(performance.now());
+  
+  // Update settingsRef when settings change
+  React.useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   React.useEffect(() => {
     stateRef.current = state;
@@ -156,15 +170,88 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
     const currentState = stateRef.current;
     const poseResults = latestPoseResultsRef.current;
     const handsResults = latestHandsResultsRef.current;
+    const debugMode = settingsRef.current.debugMode;
 
-    // 清空画布并绘制视频帧
+    // Calcalate scale based on 1280 width baseline
+    const scale = canvas.width / 1280;
+
+    // FPS calculation
+    fpsFrameCountRef.current++;
+    const now = performance.now();
+    if (now - fpsLastTimeRef.current >= 1000) {
+      const fps = Math.round(fpsFrameCountRef.current * 1000 / (now - fpsLastTimeRef.current));
+      updateFps(fps);
+      fpsFrameCountRef.current = 0;
+      fpsLastTimeRef.current = now;
+    }
+
+    // 清空画布
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // 始终使用 video 元素作为绘制源，保持一致性，避免切换时闪烁
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // 计算 object-fit: cover 的裁剪参数
+    // 确保视频填充整个画布且不变形
+    const vWidth = video.videoWidth;
+    const vHeight = video.videoHeight;
+    
+    // 如果视频尚未准备好，直接返回
+    if (!vWidth || !vHeight) {
+      pendingDrawRef.current = false;
+      return;
+    }
+    
+    const cWidth = canvas.width;
+    const cHeight = canvas.height;
+    
+    // 计算缩放比例：取宽比和高比的最大值，确保填满画布
+    const scaleRatio = Math.max(cWidth / vWidth, cHeight / vHeight);
+    
+    // 计算在原视频上需要截取的区域 (source rect)
+    const sWidth = cWidth / scaleRatio;
+    const sHeight = cHeight / scaleRatio;
+    
+    // 居中裁剪
+    const sx = (vWidth - sWidth) / 2;
+    const sy = (vHeight - sHeight) / 2;
+    
+    // 绘制裁剪后的视频帧
+    ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, cWidth, cHeight);
 
-    // 绘制 pose landmarks 和全身框（在非手势检测状态，且人体在裁剪区域内）
-    if (poseResults && poseResults.poseLandmarks && (
+    // 计算调试绘制的变换矩阵
+    // MediaPipe 返回的 landmarks 是归一化的 (0-1)，相对于原始视频尺寸
+    // 我们需要将其映射到裁剪后的画布坐标系
+    // CanvasX = (VideoX - sx) * (cWidth / sWidth)
+    // VideoX = LandmarkX * vWidth
+    // 所以: CanvasX = LandmarkX * vWidth * (cWidth / sWidth) - sx * (cWidth / sWidth)
+    // Scale = vWidth / sWidth
+    // Translate = -sx * (cWidth / sWidth)
+    
+    // 注意: sWidth = cWidth / scaleRatio => cWidth / sWidth = scaleRatio
+    // 所以 Scale = vWidth * scaleRatio / cWidth ??? 
+    // 不，简单推导:
+    // 我们将视频区域 [sx, sx+sWidth] 映射到了 [0, cWidth]
+    // 缩放因子 k = cWidth / sWidth
+    // 平移 = -sx * k
+    
+    const k = cWidth / sWidth;
+    const transX = -sx * k;
+    const transY = -sy * k;
+    const scaleX = vWidth * k / cWidth; // drawLandmarks 内部乘以 canvas.width，所以我们要使得 unit 1 对应 vWidth * k
+    const scaleY = vHeight * k / cHeight;
+    
+    // 等等，drawLandmarks 使用 x * canvas.width。
+    // 我们希望 x * canvas.width 变换后等于 (x * vWidth - sx) * k
+    // Transformed(x * cWidth) = x * cWidth * S + T
+    // Target = x * vWidth * k - sx * k
+    // 所以 S = (vWidth * k) / cWidth
+    // T = -sx * k
+    
+    // 保存上下文状态
+    ctx.save();
+    ctx.translate(transX, transY);
+    ctx.scale(scaleX, scaleY);
+
+    // 绘制 pose landmarks 和全身框（仅在 debugMode 开启时）
+    if (debugMode && poseResults && poseResults.poseLandmarks && (
       currentState === CaptureState.IDLE ||
       currentState === CaptureState.DETECTING_BODY ||
       currentState === CaptureState.BODY_DETECTED ||
@@ -174,42 +261,54 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
       // 只有当人体在 10:16 裁剪区域内时才绘制
       const { width: videoW, height: videoH } = videoDimensionsRef.current;
       const bodyInCropArea = isBodyInCropArea(poseResults.poseLandmarks, videoW, videoH);
-      const rect = calculateBodyRect(poseResults.poseLandmarks, canvas.width, canvas.height);
+      const rect = calculateBodyRect(poseResults.poseLandmarks, canvas.width, canvas.height); // 这里 calculateBodyRect 使用了 canvas.width，但因为我们缩放了 context，这里需要注意
+      // calculateBodyRect 返回的是像素值 (基于 canvas.width)。
+      // 我们的 context 已经缩放了。如果不调整，rect 也会被缩放。
+      // 但是 rect 是基于 landmarks * canvas.width 计算的。
+      // 我们的 context 缩放是为了让 "landmarks * canvas.width" 正确映射。
+      // 所以 rect 应该也是正确的。
+      
       if (rect && bodyInCropArea) {
         if (
           currentState === CaptureState.IDLE ||
           currentState === CaptureState.DETECTING_BODY ||
           currentState === CaptureState.BODY_DETECTED
         ) {
-          drawConnectors(ctx, poseResults.poseLandmarks, POSE_CONNECTIONS, { color: "#00FF00", lineWidth: 4 });
-          drawLandmarks(ctx, poseResults.poseLandmarks, { color: "#FF0000", radius: 6 });
+          // 由于 context 缩放了，lineWidth 也会被缩放。
+          // scale 变量 (canvas.width / 1280) 已经处理了屏幕适配。
+          // 这里的 scaleX/scaleY 处理了 crop 适配 (zoom)。
+          // 看起来是合理的。
+          drawConnectors(ctx, poseResults.poseLandmarks, POSE_CONNECTIONS, { color: "#00FF00", lineWidth: 4 * scale });
+          drawLandmarks(ctx, poseResults.poseLandmarks, { color: "#FF0000", radius: 6 * scale });
           ctx.strokeStyle = "#00FF00";
-          ctx.lineWidth = 8;
+          ctx.lineWidth = 8 * scale;
           ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
           ctx.fillStyle = "#00FF00";
-          ctx.font = "bold 24px Arial";
-          ctx.fillText("全身已检测", rect.x, rect.y - 20);
+          ctx.font = `bold ${Math.round(24 * scale)}px Arial`;
+          // 恢复文字绘制时的 scale，避免文字变形（如果 scaleX != scaleY）
+          // 这里 scaleX = scaleY (因为 sWidth/sHeight = cWidth/cHeight = aspect ratio preserved)
+          ctx.fillText("全身已检测", rect.x, rect.y - 20 * scale);
         } else if (currentState === CaptureState.COUNTDOWN) {
           ctx.strokeStyle = "#00FF00";
-          ctx.lineWidth = 6;
+          ctx.lineWidth = 6 * scale;
           ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
         } else if (currentState === CaptureState.COMPLETED) {
           ctx.strokeStyle = "rgba(0, 255, 0, 0.3)";
-          ctx.lineWidth = 4;
+          ctx.lineWidth = 4 * scale;
           ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
         }
       }
     }
 
-    // 绘制全身框（在手势检测状态，使用缓存的框）
-    if ((currentState === CaptureState.DETECTING_GESTURE || currentState === CaptureState.GESTURE_DETECTED) && lastBodyRectRef.current) {
+    // 绘制全身框（在手势检测状态，使用缓存的框，仅 debugMode）
+    if (debugMode && (currentState === CaptureState.DETECTING_GESTURE || currentState === CaptureState.GESTURE_DETECTED) && lastBodyRectRef.current) {
       ctx.strokeStyle = "rgba(0, 255, 0, 0.8)";
-      ctx.lineWidth = 6;
+      ctx.lineWidth = 6 * scale;
       ctx.strokeRect(lastBodyRectRef.current.x, lastBodyRectRef.current.y, lastBodyRectRef.current.width, lastBodyRectRef.current.height);
     }
 
-    // 绘制手部 landmarks 和 OK 手势（在手势检测状态，且手在裁剪区域内）
-    if (handsResults && handsResults.multiHandLandmarks && handsResults.multiHandLandmarks.length > 0 &&
+    // 绘制手部 landmarks 和 OK 手势（在手势检测状态，仅 debugMode）
+    if (debugMode && handsResults && handsResults.multiHandLandmarks && handsResults.multiHandLandmarks.length > 0 &&
         (currentState === CaptureState.DETECTING_GESTURE || currentState === CaptureState.GESTURE_DETECTED)) {
       for (const landmarks of handsResults.multiHandLandmarks) {
         // 只绘制在 10:16 裁剪区域内的手势
@@ -217,49 +316,106 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         if (!isHandInCropArea(landmarks, videoW, videoH)) {
           continue;
         }
-        drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 6 });
-        drawLandmarks(ctx, landmarks, { color: "#FF0000", lineWidth: 2, radius: 8 });
+        drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: "#00FF00", lineWidth: 6 * scale });
+        drawLandmarks(ctx, landmarks, { color: "#FF0000", lineWidth: 2 * scale, radius: 8 * scale });
 
-        const gestureResult = recognizeOKGesture(landmarks);
+        const gestureResult = recognizeOKGesture(landmarks, {
+            circleThreshold: settingsRef.current.gestureCircleThreshold,
+            fingerExtendThreshold: settingsRef.current.gestureFingerExtendThreshold,
+            confidenceThreshold: settingsRef.current.gestureConfidenceThreshold
+        });
         if (gestureResult.isOK) {
-          ctx.font = "bold 48px Arial";
+          ctx.font = `bold ${Math.round(48 * scale)}px Arial`;
           ctx.fillStyle = "#00FF00";
           ctx.strokeStyle = "#000000";
-          ctx.lineWidth = 4;
+          ctx.lineWidth = 4 * scale;
           const text = "OK 👌";
-          const textWidth = ctx.measureText(text).width;
-          ctx.strokeText(text, (canvas.width - textWidth) / 2, 160);
-          ctx.fillText(text, (canvas.width - textWidth) / 2, 160);
+          // 注意：text 也是在 transform 下绘制的。如果 text 位置是基于 canvas center 计算的...
+          // width/height 是 canvas dimensions。
+          // canvas.width 在 transform 下不再对应 屏幕右边缘。
+          // 但是我们需要文字居中...
+          // ctx.fillText(text, (canvas.width - textWidth) / 2, 160 * scale);
+          // (canvas.width - textWidth) / 2 是 canvas 坐标系下的中心。
+          // 但是当前坐标系被平移了 (-sx * k)。
+          // 屏幕中心在当前坐标系下是: (ScreenCenter - T) / S ? No.
+          // Drawing at (canvas.width/2) inside transformed context means:
+          // VisualPos = T + S * (canvas.width/2).
+          // We want VisualPos = CanvasCenter = cWidth/2.
+          // So we need to draw at X such that T + S*X = cWidth/2.
+          // X = (cWidth/2 - T) / S.
+          
+          // 这是一个问题。原本的代码使用了绝对坐标 (canvas.width).
+          // 如果我们 scale/translate 了整个 context，
+          // 用 "canvas.width" 计算出的坐标将不再对应物理画布的边缘。
+          
+          // 解决方案：
+          // 对于“固定在屏幕位置”的 UI（如倒计时、状态文字），我们应该在 restore() 之后绘制！
+          // 对于“跟随物体”的 UI（如骨架、检测框），我们应该在 restore() 之前绘制。
         }
       }
+    }
+    
+    // 恢复 context，以便后续绘制固定 UI
+    ctx.restore();
+
+    // 重新遍历绘制固定 UI (倒计时，状态文字，以及 OK 手势的文字)
+    // OK手势文字如果是跟随手的，应该在上面画。
+    // 但原代码是固定在屏幕上方 (160px)。
+    // 所以 OK 手势文字也应该移到外面。
+
+    // 补画: OK 手势文字 (如果有)
+    if (debugMode && handsResults && handsResults.multiHandLandmarks && handsResults.multiHandLandmarks.length > 0 &&
+        (currentState === CaptureState.DETECTING_GESTURE || currentState === CaptureState.GESTURE_DETECTED)) {
+         let showOK = false;
+         for (const landmarks of handsResults.multiHandLandmarks) {
+            const { width: videoW, height: videoH } = videoDimensionsRef.current;
+            if (isHandInCropArea(landmarks, videoW, videoH) && recognizeOKGesture(landmarks, {
+                circleThreshold: settingsRef.current.gestureCircleThreshold,
+                fingerExtendThreshold: settingsRef.current.gestureFingerExtendThreshold,
+                confidenceThreshold: settingsRef.current.gestureConfidenceThreshold
+            }).isOK) {
+                showOK = true;
+                break;
+            }
+         }
+         if (showOK) {
+             ctx.font = `bold ${Math.round(48 * scale)}px Arial`;
+             ctx.fillStyle = "#00FF00";
+             ctx.strokeStyle = "#000000";
+             ctx.lineWidth = 4 * scale;
+             const text = "OK 👌";
+             const textWidth = ctx.measureText(text).width;
+             ctx.strokeText(text, (canvas.width - textWidth) / 2, 160 * scale);
+             ctx.fillText(text, (canvas.width - textWidth) / 2, 160 * scale);
+         }
     }
 
     // 绘制倒计时
     if (currentState === CaptureState.COUNTDOWN) {
       ctx.fillStyle = "#FFD700";
       ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 6;
-      ctx.font = "bold 120px Arial";
+      ctx.lineWidth = 6 * scale;
+      ctx.font = `bold ${Math.round(120 * scale)}px Arial`;
       const text = countdownRef.current.toString();
       const textWidth = ctx.measureText(text).width;
       ctx.strokeText(text, (canvas.width - textWidth) / 2, canvas.height / 2);
       ctx.fillText(text, (canvas.width - textWidth) / 2, canvas.height / 2);
     }
 
-    // 绘制状态消息
+    // 绘制状态消息（仅 debugMode 或倒计时状态）
     const currentStatusMessage = statusMessageRef.current;
-    if (currentStatusMessage && currentState !== CaptureState.COUNTDOWN) {
+    if (debugMode && currentStatusMessage && currentState !== CaptureState.COUNTDOWN) {
       ctx.fillStyle = "#FFFFFF";
       ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 4;
-      ctx.font = "bold 32px Arial";
+      ctx.lineWidth = 4 * scale;
+      ctx.font = `bold ${Math.round(32 * scale)}px Arial`;
       const textWidth = ctx.measureText(currentStatusMessage).width;
-      ctx.strokeText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 100);
-      ctx.fillText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 100);
+      ctx.strokeText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 100 * scale);
+      ctx.fillText(currentStatusMessage, (canvas.width - textWidth) / 2, canvas.height - 100 * scale);
     }
 
     pendingDrawRef.current = false;
-  }, []);
+  }, [updateFps]);
 
   // 请求绘制
   const requestDraw = React.useCallback(() => {
@@ -364,7 +520,11 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
           if (!isHandInCropArea(landmarks, videoW, videoH)) {
             continue;
           }
-          const gestureResult = recognizeOKGesture(landmarks);
+          const gestureResult = recognizeOKGesture(landmarks, {
+            circleThreshold: settingsRef.current.gestureCircleThreshold,
+            fingerExtendThreshold: settingsRef.current.gestureFingerExtendThreshold,
+            confidenceThreshold: settingsRef.current.gestureConfidenceThreshold
+          });
           if (gestureResult.isOK) {
             isOKDetected = true;
             break;
@@ -582,7 +742,12 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
               return `${import.meta.env.BASE_URL}mediapipe/hands/${file}`;
             }
           });
-          h.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.3 });
+          h.setOptions({ 
+            maxNumHands: settingsRef.current.handsMaxNum, 
+            modelComplexity: settingsRef.current.handsModelComplexity, 
+            minDetectionConfidence: settingsRef.current.handsMinDetectionConfidence, 
+            minTrackingConfidence: settingsRef.current.handsMinTrackingConfidence 
+          });
           return h;
         })();
 
@@ -595,6 +760,12 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         handsRef.current = hands;
 
         console.log('创建 Camera 实例...');
+        
+        // 从设置中获取分辨率
+        const targetWidth = settingsRef.current.videoWidth;
+        const targetHeight = settingsRef.current.videoHeight;
+        console.log(`📹 请求分辨率: ${targetWidth}x${targetHeight}`);
+        
         camera = new Camera(videoRef.current, {
           onFrame: async () => {
             if (!mounted || !videoRef.current) return;
@@ -624,8 +795,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
               // 忽略错误，继续下一帧
             }
           },
-          width: 1280,
-          height: 960,
+          width: targetWidth,
+          height: targetHeight,
         });
 
         console.log('正在启动摄像头...');
@@ -634,10 +805,17 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
         
         // 更新实际视频分辨率
         if (videoRef.current) {
-          const actualWidth = videoRef.current.videoWidth || 1280;
-          const actualHeight = videoRef.current.videoHeight || 960;
+          const requestedWidth = settingsRef.current.videoWidth;
+          const requestedHeight = settingsRef.current.videoHeight;
+          const actualWidth = videoRef.current.videoWidth || targetWidth;
+          const actualHeight = videoRef.current.videoHeight || targetHeight;
           videoDimensionsRef.current = { width: actualWidth, height: actualHeight };
-          console.log(`实际视频分辨率: ${actualWidth}x${actualHeight} (高分辨率模式)`);
+          
+          if (actualWidth !== requestedWidth || actualHeight !== requestedHeight) {
+            console.log(`📹 请求分辨率: ${requestedWidth}x${requestedHeight}，摄像头实际输出: ${actualWidth}x${actualHeight}`);
+          } else {
+            console.log(`✅ 视频分辨率: ${actualWidth}x${actualHeight}`);
+          }
         }
         
         cameraRef.current = camera;
@@ -730,8 +908,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
             // 忽略错误
           }
         },
-        width: 1280,
-        height: 960,
+        width: settingsRef.current.videoWidth,
+        height: settingsRef.current.videoHeight,
       });
 
       await camera.start();
@@ -749,8 +927,8 @@ export function useMediaPipe({ onCapture }: UseMediaPipeProps = {}) {
               console.log(`✅ 视频分辨率已就绪: ${video.videoWidth}x${video.videoHeight} (尝试 ${attempts} 次)`);
               resolve({ width: video.videoWidth, height: video.videoHeight });
             } else if (attempts >= maxAttempts) {
-              console.warn('⚠️ 等待视频分辨率超时，使用默认值 1280x960');
-              resolve({ width: 1280, height: 960 });
+              console.warn(`⚠️ 等待视频分辨率超时，使用设置值 ${settingsRef.current.videoWidth}x${settingsRef.current.videoHeight}`);
+              resolve({ width: settingsRef.current.videoWidth, height: settingsRef.current.videoHeight });
             } else {
               setTimeout(checkDimensions, 50);
             }

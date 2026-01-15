@@ -13,10 +13,22 @@ export function calculateDistance(
 }
 
 // 识别OK手势（优化版：适配全身拍照场景，使用动态阈值）
-export function recognizeOKGesture(landmarks: NormalizedLandmark[]): {
+export function recognizeOKGesture(
+  landmarks: NormalizedLandmark[],
+  options: {
+    circleThreshold?: number;
+    fingerExtendThreshold?: number;
+    confidenceThreshold?: number;
+  } = {}
+): {
   isOK: boolean;
   confidence: number;
 } {
+  const {
+    circleThreshold: userCircleThreshold = 0.15,
+    fingerExtendThreshold: userFingerExtendThreshold = 0.4,
+    confidenceThreshold = 70
+  } = options;
   // 手部关键点索引：
   // 0: 手腕
   // 4: 大拇指尖
@@ -41,8 +53,8 @@ export function recognizeOKGesture(landmarks: NormalizedLandmark[]): {
 
   // 1. 检查大拇指和食指是否形成圆圈（使用动态阈值）
   const thumbIndexDist = calculateDistance(thumbTip, indexTip);
-  // 动态阈值：允许圆圈直径为手掌大小的 15%（原来是固定0.08）
-  const circleThreshold = Math.max(handSize * 0.15, 0.06); // 最小阈值0.06
+  // 动态阈值：允许圆圈直径为手掌大小的比例
+  const circleThreshold = Math.max(handSize * userCircleThreshold, 0.06); // 最小阈值0.06
   const isCircleFormed = thumbIndexDist < circleThreshold;
 
   // 圆圈质量评分（越小越好，满分40）
@@ -52,7 +64,7 @@ export function recognizeOKGesture(landmarks: NormalizedLandmark[]): {
 
   // 2. 检查其他三根手指是否伸直（使用相对位置）
   // 改进：使用相对于手掌基准的距离，考虑手的大小
-  const fingerExtendThreshold = handSize * 0.4; // 动态阈值
+  const fingerExtendThreshold = handSize * userFingerExtendThreshold; // 动态阈值
 
   const middleExtendDist = Math.abs(middleTip.y - palmBase.y);
   const ringExtendDist = Math.abs(ringTip.y - palmBase.y);
@@ -101,7 +113,11 @@ export function recognizeOKGesture(landmarks: NormalizedLandmark[]): {
   // 条件1：置信度 >= 70分（降低要求）
   // 条件2：必须形成圆圈
   // 条件3：至少2根手指伸直
-  const isOK = confidenceScore >= 70 && isCircleFormed && extendedCount >= 2;
+  // 判断是否为OK手势（优化判断逻辑）
+  // 条件1：置信度 >= 阈值
+  // 条件2：必须形成圆圈
+  // 条件3：至少2根手指伸直
+  const isOK = confidenceScore >= confidenceThreshold && isCircleFormed && extendedCount >= 2;
 
   return {
     isOK,

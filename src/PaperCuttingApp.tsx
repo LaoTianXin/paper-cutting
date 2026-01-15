@@ -4,6 +4,7 @@ import type { DetectionState } from "./types/paperCutting";
 import { CaptureState } from "./types/capture";
 import { useMediaPipe } from "./hooks/useMediaPipe";
 import { useScreenAdaptation } from "./hooks/useScreenAdaptation";
+import { useSettings } from "./contexts/SettingsContext";
 import { Page1Images, Page2Images, Page3Images, Page4Images } from "./constants/images";
 import { generatePaperCutImage } from "./services/comfyuiService";
 
@@ -24,6 +25,7 @@ import CameraWithFrame from "./components/PaperCutting/CameraWithFrame";
 const PaperCuttingApp: React.FC = () => {
   // Apply 9:16 aspect ratio screen adaptation (720px × 1280px)
   useScreenAdaptation(720, 1280);
+  const { settings } = useSettings();
   const [currentStage, setCurrentStage] = useState<PageStage>(PageStage.SCAN_START);
   const [capturedImage, setCapturedImage] = useState<string>("");
   const [, setFrozenFrameUrl] = useState<string>("");
@@ -273,19 +275,19 @@ const PaperCuttingApp: React.FC = () => {
     <>
       {/* Hidden video and canvas for MediaPipe - MUST render immediately for refs to attach */}
       {/* Source video and canvas for MediaPipe - processing buffer, kept hidden but updated */}
-      {/* High resolution: 1280x960 (4:3) for better image quality */}
+      {/* Resolution from settings */}
       <div style={{ visibility: "hidden", position: "absolute", zIndex: -10, pointerEvents: "none", left: -1000, top: -1000 }}>
         <video
           ref={videoRef}
-          style={{ width: 1280, height: 960 }}
+          style={{ width: settings.videoWidth, height: settings.videoHeight }}
           autoPlay
           playsInline
         />
         <canvas
           ref={canvasRef}
-          width={1280}
-          height={960}
-          style={{ width: 1280, height: 960 }}
+          width={settings.videoWidth}
+          height={settings.videoHeight}
+          style={{ width: settings.videoWidth, height: settings.videoHeight }}
         />
         <canvas ref={capturedImageRef} />
       </div>
